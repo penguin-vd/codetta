@@ -1,12 +1,8 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-// Parses the command line into a `Command`. `args` is the argument vector
-// *without* the program name (i.e. `argv[1..]`).
-//
-// codetta is command-based: every subcommand maps to one backend or inspection
-// utility and owns its own flags - that's what keeps it easy to grow (a new
-// backend is a new subcommand plus a case in `commands.zig`, nothing more).
+// Each subcommand owns its own flags, so adding a backend is just a new
+// case here plus a function in `commands.zig`.
 
 pub const InputOptions = struct {
     input_path: []const u8,

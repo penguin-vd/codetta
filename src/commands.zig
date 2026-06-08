@@ -9,10 +9,8 @@ const Midi = @import("midi/midi.zig");
 const Cli = @import("cli/cli.zig");
 const inspect = @import("inspect/inspect.zig");
 
-// One function per CLI subcommand - this is the seam where backends and
-// inspection utilities plug in. Adding a new backend means adding a new
-// subcommand to `Cli.Command`/`Cli.parse` and a function here that wires it
-// to `parseSource`/`lowerProgram`; nothing else needs to change.
+// One function per CLI subcommand, each wiring `parseSource`/`lowerProgram`
+// to a backend or inspection utility.
 
 pub fn midi(allocator: Allocator, io: std.Io, options: Cli.MidiOptions) !void {
     const program = try parseSource(allocator, io, options.input_path) orelse return;
@@ -40,10 +38,8 @@ pub fn check(allocator: Allocator, io: std.Io, options: Cli.InputOptions) !void 
     std.debug.print("{s}: ok\n", .{options.input_path});
 }
 
-// ---- shared pipeline stages ----
-//
-// Both stages report their own diagnostics and return `null` on failure, so
-// each command above can just `orelse return` without repeating error text.
+// Both stages report their own diagnostics and return null on failure, so
+// callers can just `orelse return` without repeating error text.
 
 fn parseSource(allocator: Allocator, io: std.Io, input_path: []const u8) !?ast.Program {
     const code = std.Io.Dir.cwd().readFileAlloc(io, input_path, allocator, .unlimited) catch |err| {
