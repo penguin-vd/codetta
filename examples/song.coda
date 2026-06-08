@@ -1,0 +1,38 @@
+tempo 120
+time_signature 4/4
+
+chord Cmaj = [C4 E4 G4]
+chord Fmaj = [F4 A4 C5]
+chord Gmaj = [G4 B4 D5]
+
+phrase melody =
+  C4.quarter E4.quarter G4.quarter rest.quarter
+  D4.half C4.half
+  @1.1 C3.whole
+
+  dynamic @0 p
+  dynamic @0.3 crescendo to f over 1 bar
+
+phrase bassline =
+  C3.whole F3.whole G3.whole C3.whole
+
+section intro =
+  track melody: melody
+  track bass:   bassline
+
+section verse =
+  track melody:  melody
+  track counter: melody transpose +2 reverse
+  track bass:    bassline
+
+section chorus =
+  track melody: melody transpose +5 augment x2
+  track chords: Cmaj.half Fmaj.half Gmaj.half Cmaj.half
+  track bass:   bassline transpose -5
+
+song =
+  intro
+  verse * 2
+  chorus
+  verse
+  chorus * 2

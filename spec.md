@@ -1,4 +1,4 @@
-# Music Language Specification
+# Codetta
 > A compiled, composition-first language for writing music.
 
 ---
