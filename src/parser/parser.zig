@@ -372,11 +372,6 @@ fn tryParseTransform(self: *Self) !?ast.TransformKind {
         self.advance();
         return .{ .diminish = try self.parseMultiplier() };
     }
-    if (std.mem.eql(u8, name, "humanize")) {
-        self.advance();
-        return .{ .humanize = try self.parseFloat() };
-    }
-
     return null;
 }
 
@@ -441,22 +436,6 @@ fn parseMultiplier(self: *Self) !u32 {
 
     return std.fmt.parseInt(u32, tok.literal[1..], 10) catch
         self.failAt(tok, "invalid multiplier '{s}'", .{tok.literal});
-}
-
-fn parseFloat(self: *Self) !f32 {
-    const whole_tok = try self.expect(.int);
-    const whole = try self.parseIntTok(u32, whole_tok);
-
-    if (self.cur_token.tokenType != .dot) {
-        return @floatFromInt(whole);
-    }
-    self.advance();
-
-    const frac_tok = try self.expect(.int);
-    const frac = try self.parseIntTok(u32, frac_tok);
-    const scale = std.math.pow(f32, 10, @floatFromInt(frac_tok.literal.len));
-
-    return @as(f32, @floatFromInt(whole)) + @as(f32, @floatFromInt(frac)) / scale;
 }
 
 fn parsePitched(self: *Self, tok: Token) !ast.Pitched {

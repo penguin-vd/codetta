@@ -2,12 +2,16 @@ const std = @import("std");
 
 const Parser = @import("parser/parser.zig");
 const ast = @import("parser/ast.zig");
+const Lower = @import("ir/lower.zig");
+const score = @import("ir/score.zig");
 
 pub fn main(init: std.process.Init) !void {
     const code =
         \\tempo 120
+        \\time_signature 4/4
         \\
         \\chord Cmaj = [C4 E4 G4]
+        \\chord Fmaj = [F4 A4 C5]
         \\
         \\phrase melody =
         \\  C4.quarter E4.quarter G4.quarter rest.quarter
@@ -19,6 +23,9 @@ pub fn main(init: std.process.Init) !void {
         \\section verse =
         \\  track melody: melody transpose +5 reverse
         \\  track chords: Cmaj.whole Fmaj.whole
+        \\
+        \\song =
+        \\  verse * 2
     ;
 
     var arena = std.heap.ArenaAllocator.init(init.gpa);
@@ -36,6 +43,31 @@ pub fn main(init: std.process.Init) !void {
 
     for (program.top_level) |index| {
         printNode(program, index, 0);
+    }
+
+    std.debug.print("\n--- lowered score ---\n", .{});
+
+    var lowerer = Lower.init(arena.allocator(), program);
+    const result = lowerer.lower() catch |err| {
+        std.debug.print("error: {s}\n", .{@errorName(err)});
+        return;
+    };
+    printScore(result);
+}
+
+fn printScore(s: score.Score) void {
+    std.debug.print("tempo {d}, {d}/{d}, {d} ticks/quarter\n", .{
+        s.tempo_bpm, s.time_signature.numerator, s.time_signature.denominator, s.ticks_per_quarter,
+    });
+
+    for (s.tracks, 0..) |track, i| {
+        std.debug.print("track {d}: \"{s}\"\n", .{ i, track.name });
+    }
+
+    for (s.notes) |n| {
+        std.debug.print("  [{d:>5}..{d:<5}] track {d}  pitch {d:>3}  vel {d:>3}\n", .{
+            n.start, n.start + n.duration, n.track, n.pitch, n.velocity,
+        });
     }
 }
 
@@ -122,7 +154,6 @@ fn printNode(program: ast.Program, index: ast.NodeIndex, indent: usize) void {
                 .reverse => std.debug.print("reverse\n", .{}),
                 .augment => |factor| std.debug.print("augment x{d}\n", .{factor}),
                 .diminish => |factor| std.debug.print("diminish x{d}\n", .{factor}),
-                .humanize => |amount| std.debug.print("humanize {d:.2}\n", .{amount}),
             }
             printNode(program, n.target, indent + 1);
         },

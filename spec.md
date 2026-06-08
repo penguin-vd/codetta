@@ -176,7 +176,6 @@ melody transpose +5 reverse augment x2   -- chained
 | `reverse` | Reverse the note order |
 | `augment xN` | Multiply all durations by N |
 | `diminish xN` | Divide all durations by N |
-| `humanize N` | Add slight timing/velocity variation (0.0–1.0) |
 
 ---
 
@@ -271,6 +270,7 @@ song =
 
 ## Planned / Future
 
+- **`humanize N`** — add slight timing/velocity variation (0.0–1.0) as a transformation
 - **Functions** — reusable transformations with parameters
 - **Scale / interval library** — derive chords from theory (`C major`, `G mixolydian`)
 - **Voice leading** — automatic smooth chord transitions

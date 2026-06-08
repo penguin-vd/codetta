@@ -16,7 +16,6 @@ pub const TransformKind = union(enum) {
     reverse,
     augment: u32, // xN
     diminish: u32, // xN
-    humanize: f32, // 0.0-1.0
 };
 
 pub const Node = union(enum) {
