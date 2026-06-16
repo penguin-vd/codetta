@@ -21,7 +21,8 @@ const BY_ID = new Map(INSTRUMENTS.map((i) => [i.id, i]));
 
 export function defaultInstrument(name: string): string {
   const n = name.toLowerCase();
-  if (n.includes("bass") || n.includes("sub")) return "sub";
+  if (n.includes("bass")) return "pluck";
+  if (n.includes("sub")) return "sub";
   if (n.includes("chord") || n.includes("pad")) return "pad";
   if (n.includes("counter") || n.includes("harmony")) return "glass";
   return "pulse";

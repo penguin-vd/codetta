@@ -38,7 +38,7 @@ export function Transport({ ready, playing, tempo, signature, noteCount, error, 
         <button
           onClick={playing ? onStop : onPlay}
           disabled={disabled}
-          className="inline-flex items-center gap-2 rounded-md bg-gold px-4 py-2 text-sm font-semibold text-[#2a1c06] transition hover:brightness-105 disabled:opacity-40 disabled:hover:brightness-100"
+          className="inline-flex items-center gap-2 rounded-md bg-gold px-4 py-2 font-mono text-xs font-semibold uppercase tracking-wider text-[#2a1c06] transition hover:brightness-105 disabled:opacity-40 disabled:hover:brightness-100"
         >
           <span className="text-[10px]">{playing ? "■" : "▶"}</span>
           {playing ? "Stop" : "Play"}
@@ -46,7 +46,7 @@ export function Transport({ ready, playing, tempo, signature, noteCount, error, 
         <button
           onClick={onExport}
           disabled={disabled}
-          className="inline-flex items-center gap-2 rounded-md border border-line bg-raise px-4 py-2 text-sm font-semibold text-cream transition hover:border-gold/50 hover:text-gold disabled:opacity-40"
+          className="inline-flex items-center gap-2 rounded-md border border-line bg-raise px-4 py-2 font-mono text-xs font-semibold uppercase tracking-wider text-cream transition hover:border-gold/50 hover:text-gold disabled:opacity-40"
         >
           <span className="text-[10px]">⤓</span>
           MIDI
