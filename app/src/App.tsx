@@ -7,37 +7,21 @@ import { Engine, defaultInstrument } from "./audio.ts";
 import { compileSong, compileMidi, preloadWasm, CompileError } from "./wasm.ts";
 import type { Song } from "./types.ts";
 
-const SAMPLE = `tempo 120
+const SAMPLE = `tempo 100
 time_signature 4/4
 
 chord Cmaj = [C4 E4 G4]
 chord Fmaj = [F4 A4 C5]
-chord Gmaj = [G4 B4 D5]
 
-phrase melody =
-  C5.quarter E5.quarter G5.quarter rest.quarter
-  D5.half C5.half
+phrase bass =
+  C2.whole F2.whole
 
-  dynamic @0 mp
-  dynamic @0.3 crescendo to f over 1 bar
-
-phrase bassline =
-  C3.whole F3.whole G3.whole C3.whole
-
-section verse =
-  track melody: melody
-  track bass:   bassline
-
-section chorus =
-  track melody:  melody transpose +5 augment x2
-  track chords:  Cmaj.half Fmaj.half Gmaj.half Cmaj.half
-  track counter: melody transpose +2 reverse
-  track bass:    bassline transpose -5
+section loop =
+  track chords: Cmaj.whole Fmaj.whole
+  track bass:   bass
 
 song =
-  verse * 2
-  chorus
-  verse
+  loop * 4
 `;
 
 export function App() {
