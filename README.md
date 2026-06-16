@@ -52,6 +52,7 @@ Usage: codetta <command> <input.coda> [options]
 
 Commands:
   midi <input> [-o <output>]   Compile to a Standard MIDI File
+  web <input> [-o <output>]    Compile to @tonejs/midi-style JSON
   inspect-ast <input>          Print the parsed syntax tree
   inspect-score <input>        Print the lowered Score IR
   check <input>                Parse and lower without producing output
@@ -66,14 +67,43 @@ For example, to compile the example song to MIDI:
 zig build run -- midi examples/song.coda -o song.mid
 ```
 
+## Web app
+
+Codetta compiles to a WebAssembly module that runs the whole pipeline in the
+browser, so you can write songs in a live editor and hear them played through
+[Tone.js](https://tonejs.github.io/) synths. Every keystroke is compiled to a
+`Score` via the `web` backend (exposed through `src/wasm.zig`), drawn as a
+piano-roll, and the same module also exports a Standard MIDI File.
+
+The frontend is a Vite + React app in [`app/`](app/) — a syntax-highlighted
+editor, a piano-roll with a moving playhead, and a channel strip per track with
+a selectable instrument:
+
+```sh
+cd app && npm install && npm run dev   # builds the WASM module, then serves
+```
+
+`npm run dev` runs `zig build wasm` for you; to build the module on its own (it
+lands in `app/public/codetta.wasm`):
+
+```sh
+zig build wasm
+```
+
 ## Project layout
 
 - `src/lexer`, `src/parser`: turn `.coda` source into an AST
 - `src/ir`: lowers the AST into a `Score`, the intermediate representation
   shared by all backends
 - `src/midi`: compiles a `Score` to a Standard MIDI File
+- `src/web`: compiles a `Score` to @tonejs/midi-style JSON for the browser
+- `src/diag`: collects all diagnostics at once — recovered syntax errors plus
+  lint rules (missing `tempo`/`time_signature`, undefined references, and
+  defined-but-unused chords/phrases/sections)
 - `src/inspect`: pretty-prints the AST and `Score` for debugging
 - `src/cli`, `src/commands.zig`: the subcommand-based CLI
+- `src/wasm.zig`: the freestanding WASM entry point used by the web app
+- `app/`: the Vite + React frontend (editor, piano-roll, Tone.js playback)
 
 A new backend is a new subcommand plus a function in `commands.zig` that
 feeds it a `Score`.
