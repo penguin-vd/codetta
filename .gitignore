@@ -5,3 +5,4 @@ zig-out
 app/node_modules
 app/dist
 app/public/codetta.wasm
+app/tsconfig.tsbuildinfo
