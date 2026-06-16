@@ -17,6 +17,7 @@ pub fn main(init: std.process.Init) !void {
     switch (command) {
         .help => std.debug.print("{s}", .{Cli.usage}),
         .midi => |options| try commands.midi(allocator, init.io, options),
+        .web => |options| try commands.web(allocator, init.io, options),
         .inspect_ast => |options| try commands.inspectAst(allocator, init.io, options),
         .inspect_score => |options| try commands.inspectScore(allocator, init.io, options),
         .check => |options| try commands.check(allocator, init.io, options),

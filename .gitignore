@@ -1,2 +1,7 @@
 .zig-cache
 zig-out
+
+# web app
+app/node_modules
+app/dist
+app/public/codetta.wasm

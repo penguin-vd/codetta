@@ -6,6 +6,7 @@ const ast = @import("parser/ast.zig");
 const Lower = @import("ir/lower.zig");
 const ir = @import("ir/score.zig");
 const Midi = @import("midi/midi.zig");
+const Web = @import("web/web.zig");
 const Cli = @import("cli/cli.zig");
 const inspect = @import("inspect/inspect.zig");
 
@@ -17,6 +18,15 @@ pub fn midi(allocator: Allocator, io: std.Io, options: Cli.MidiOptions) !void {
     const result = try lowerProgram(allocator, program) orelse return;
 
     const bytes = try Midi.write(allocator, result);
+    try std.Io.Dir.cwd().writeFile(io, .{ .sub_path = options.output_path, .data = bytes });
+    std.debug.print("wrote {d} bytes to {s}\n", .{ bytes.len, options.output_path });
+}
+
+pub fn web(allocator: Allocator, io: std.Io, options: Cli.WebOptions) !void {
+    const program = try parseSource(allocator, io, options.input_path) orelse return;
+    const result = try lowerProgram(allocator, program) orelse return;
+
+    const bytes = try Web.write(allocator, result);
     try std.Io.Dir.cwd().writeFile(io, .{ .sub_path = options.output_path, .data = bytes });
     std.debug.print("wrote {d} bytes to {s}\n", .{ bytes.len, options.output_path });
 }

@@ -101,6 +101,56 @@ pub fn parseProgram(self: *Self) !Program {
     };
 }
 
+pub const Lenient = struct {
+    program: Program,
+    diagnostics: []const Diagnostic,
+};
+
+const max_diagnostics = 64;
+
+// Like parseProgram, but recovers from syntax errors so a whole file can be
+// checked at once: on failure it records the diagnostic, skips to the next
+// top-level declaration, and keeps going.
+pub fn parseLenient(self: *Self) error{OutOfMemory}!Lenient {
+    var diagnostics: std.ArrayList(Diagnostic) = .empty;
+
+    while (self.cur_token.tokenType != .eof) {
+        const index = self.parseTopLevel() catch |err| switch (err) {
+            error.OutOfMemory => return error.OutOfMemory,
+            error.SyntaxError => {
+                if (self.diagnostic) |d| {
+                    if (diagnostics.items.len < max_diagnostics) try diagnostics.append(self.allocator, d);
+                }
+                self.synchronize();
+                continue;
+            },
+        };
+        try self.top_level.append(self.allocator, index);
+    }
+
+    return .{
+        .program = .{
+            .nodes = try self.nodes.toOwnedSlice(self.allocator),
+            .top_level = try self.top_level.toOwnedSlice(self.allocator),
+        },
+        .diagnostics = try diagnostics.toOwnedSlice(self.allocator),
+    };
+}
+
+fn synchronize(self: *Self) void {
+    self.advance();
+    while (!isTopLevelStart(self.cur_token.tokenType) and self.cur_token.tokenType != .eof) {
+        self.advance();
+    }
+}
+
+fn isTopLevelStart(t: TokenType) bool {
+    return switch (t) {
+        .tempo, .time_signature, .chord, .phrase, .section, .song => true,
+        else => false,
+    };
+}
+
 fn parseTopLevel(self: *Self) !NodeIndex {
     return switch (self.cur_token.tokenType) {
         .tempo => self.parseTempo(),
@@ -150,6 +200,8 @@ fn parseChordDef(self: *Self) !NodeIndex {
     return self.addNode(.{ .chord_def = .{
         .name = name_tok.literal,
         .notes = try notes.toOwnedSlice(self.allocator),
+        .line = name_tok.line,
+        .column = name_tok.column,
     } });
 }
 
@@ -166,6 +218,8 @@ fn parsePhraseDef(self: *Self) !NodeIndex {
     return self.addNode(.{ .phrase_def = .{
         .name = name_tok.literal,
         .body = try body.toOwnedSlice(self.allocator),
+        .line = name_tok.line,
+        .column = name_tok.column,
     } });
 }
 
@@ -182,6 +236,8 @@ fn parseSectionDef(self: *Self) !NodeIndex {
     return self.addNode(.{ .section_def = .{
         .name = name_tok.literal,
         .tracks = try tracks.toOwnedSlice(self.allocator),
+        .line = name_tok.line,
+        .column = name_tok.column,
     } });
 }
 
@@ -227,7 +283,12 @@ fn parseChordRefElement(self: *Self) !NodeIndex {
     const name_tok = try self.expect(.identifier);
     const duration = try self.parseDuration();
 
-    return self.addNode(.{ .chord_ref = .{ .name = name_tok.literal, .duration = duration } });
+    return self.addNode(.{ .chord_ref = .{
+        .name = name_tok.literal,
+        .duration = duration,
+        .line = name_tok.line,
+        .column = name_tok.column,
+    } });
 }
 
 fn parsePositionedElement(self: *Self) ParseError!NodeIndex {
@@ -325,7 +386,11 @@ fn parseSongItem(self: *Self) !?NodeIndex {
     const name_tok = self.cur_token;
     self.advance();
 
-    const node = try self.addNode(.{ .identifier = .{ .name = name_tok.literal } });
+    const node = try self.addNode(.{ .identifier = .{
+        .name = name_tok.literal,
+        .line = name_tok.line,
+        .column = name_tok.column,
+    } });
     return try self.maybeWrapRepeat(node);
 }
 
@@ -335,11 +400,20 @@ fn parseIdentifierOrChordRef(self: *Self) !NodeIndex {
     if (self.peek_token.tokenType == .dot) {
         self.advance();
         const duration = try self.parseDuration();
-        return self.addNode(.{ .chord_ref = .{ .name = name_tok.literal, .duration = duration } });
+        return self.addNode(.{ .chord_ref = .{
+            .name = name_tok.literal,
+            .duration = duration,
+            .line = name_tok.line,
+            .column = name_tok.column,
+        } });
     }
 
     self.advance();
-    return self.addNode(.{ .identifier = .{ .name = name_tok.literal } });
+    return self.addNode(.{ .identifier = .{
+        .name = name_tok.literal,
+        .line = name_tok.line,
+        .column = name_tok.column,
+    } });
 }
 
 fn maybeWrapRepeat(self: *Self, node: NodeIndex) !NodeIndex {

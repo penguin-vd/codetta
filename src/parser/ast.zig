@@ -24,15 +24,15 @@ pub const Node = union(enum) {
     time_signature: struct { numerator: u32, denominator: u32 },
 
     // top-level definitions
-    chord_def: struct { name: []const u8, notes: []const Pitched },
-    phrase_def: struct { name: []const u8, body: []const NodeIndex }, // body -> phrase elements
-    section_def: struct { name: []const u8, tracks: []const NodeIndex }, // tracks -> .track
+    chord_def: struct { name: []const u8, notes: []const Pitched, line: u32 = 0, column: u32 = 0 },
+    phrase_def: struct { name: []const u8, body: []const NodeIndex, line: u32 = 0, column: u32 = 0 }, // body -> phrase elements
+    section_def: struct { name: []const u8, tracks: []const NodeIndex, line: u32 = 0, column: u32 = 0 }, // tracks -> .track
     song_def: struct { items: []const NodeIndex }, // items -> identifier/repeat
 
     // phrase elements
     note: struct { pitched: Pitched, duration: Duration },
     rest: struct { duration: Duration },
-    chord_ref: struct { name: []const u8, duration: Duration }, // Cmaj.half
+    chord_ref: struct { name: []const u8, duration: Duration, line: u32 = 0, column: u32 = 0 }, // Cmaj.half
     positioned: struct { position: Position, target: NodeIndex }, // @1.1 C3.whole
     dynamic_level: struct { position: Position, level: DynamicLevel }, // dynamic @0 p
     dynamic_shape: struct { // dynamic @0.3 crescendo to f over 1 bar
@@ -43,7 +43,7 @@ pub const Node = union(enum) {
     },
 
     // references & combinators (phrases, tracks, song all reuse these)
-    identifier: struct { name: []const u8 },
+    identifier: struct { name: []const u8, line: u32 = 0, column: u32 = 0 },
     sequence: struct { items: []const NodeIndex }, // A B C, juxtaposed in time
     repeat: struct { target: NodeIndex, count: u32 }, // <node> * N
     transform: struct { target: NodeIndex, op: TransformKind }, // <node> transpose +5

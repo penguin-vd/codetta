@@ -15,6 +15,26 @@ pub fn build(b: *std.Build) void {
 
     b.installArtifact(exe);
 
+    // WASM reactor for the browser. `zig build wasm` drops codetta.wasm into
+    // app/public/ so the Vite app can fetch it as a static asset.
+    const wasm = b.addExecutable(.{
+        .name = "codetta",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/wasm.zig"),
+            .target = b.resolveTargetQuery(.{ .cpu_arch = .wasm32, .os_tag = .freestanding }),
+            .optimize = .ReleaseSmall,
+        }),
+    });
+    wasm.entry = .disabled;
+    wasm.rdynamic = true;
+
+    // Publish the module into the Vite app's static assets.
+    const install_wasm = b.addInstallArtifact(wasm, .{
+        .dest_dir = .{ .override = .{ .custom = "../app/public" } },
+    });
+    const wasm_step = b.step("wasm", "Build the browser WASM module into app/public/");
+    wasm_step.dependOn(&install_wasm.step);
+
     const run_step = b.step("run", "Run the app");
 
     const run_cmd = b.addRunArtifact(exe);

@@ -40,6 +40,18 @@ test "midi command reports a missing -o/--output value" {
     try testing.expectError(error.MissingValue, Cli.parse(arena.allocator(), &.{ "midi", "song.coda", "-o" }));
 }
 
+test "web command derives a .json output path and honors -o" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const derived = try Cli.parse(arena.allocator(), &.{ "web", "song.coda" });
+    try testing.expect(derived == .web);
+    try testing.expectEqualStrings("song.json", derived.web.output_path);
+
+    const explicit = try Cli.parse(arena.allocator(), &.{ "web", "song.coda", "-o", "out/song.json" });
+    try testing.expectEqualStrings("out/song.json", explicit.web.output_path);
+}
+
 test "inspect-ast, inspect-score and check take a single input path" {
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();
@@ -84,6 +96,7 @@ test "missing input is reported for every subcommand" {
     defer arena.deinit();
 
     try testing.expectError(error.MissingInput, Cli.parse(arena.allocator(), &.{"midi"}));
+    try testing.expectError(error.MissingInput, Cli.parse(arena.allocator(), &.{"web"}));
     try testing.expectError(error.MissingInput, Cli.parse(arena.allocator(), &.{"inspect-ast"}));
     try testing.expectError(error.MissingInput, Cli.parse(arena.allocator(), &.{"inspect-score"}));
     try testing.expectError(error.MissingInput, Cli.parse(arena.allocator(), &.{"check"}));
