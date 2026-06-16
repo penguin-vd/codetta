@@ -10,14 +10,15 @@ import type { Song } from "./types.ts";
 const SAMPLE = `tempo 100
 time_signature 4/4
 
-chord Cmaj = [C4 E4 G4]
-chord Fmaj = [F4 A4 C5]
+chord Cmaj = [B3 C4 E4 G3]
+chord Dmin = [F4 A3 C4 D4]
 
 phrase bass =
-  C2.whole F2.whole
+  C2.quarter C3.quarter C2.quarter C3.quarter
+  D2.quarter D3.quarter D2.quarter D3.quarter
 
 section loop =
-  track chords: Cmaj.whole Fmaj.whole
+  track chords: Cmaj.whole Dmin.whole
   track bass:   bass
 
 song =
