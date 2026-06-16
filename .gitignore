@@ -6,3 +6,6 @@ app/node_modules
 app/dist
 app/public/codetta.wasm
 app/tsconfig.tsbuildinfo
+
+# deployment (contains host-specific details)
+deploy/
