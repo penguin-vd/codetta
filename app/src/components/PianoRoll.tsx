@@ -21,6 +21,18 @@ const noteName = (midi: number) =>
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
+const velLabel = (v: number): string => {
+  const midi = Math.round(v * 127);
+  if (midi <= 20) return "ppp";
+  if (midi <= 40) return "pp";
+  if (midi <= 56) return "p";
+  if (midi <= 72) return "mp";
+  if (midi <= 88) return "mf";
+  if (midi <= 104) return "f";
+  if (midi <= 120) return "ff";
+  return "fff";
+};
+
 export function PianoRoll({ song, engine, playing, audible }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -32,6 +44,8 @@ export function PianoRoll({ song, engine, playing, audible }: Props) {
   zoomRef.current = zoom;
   const playingRef = useRef(playing);
   playingRef.current = playing;
+  const layoutRef = useRef<{ lo: number; hi: number; px: number; scroll: number; rowH: number; totalTicks: number } | null>(null);
+  const [tooltip, setTooltip] = useState<{ x: number; y: number; text: string } | null>(null);
 
   const draw = useCallback(
     (playheadSec: number | null) => {
@@ -123,12 +137,13 @@ export function PianoRoll({ song, engine, playing, audible }: Props) {
           if (x + bw < GUTTER || x > w) continue;
           const y = yOf(n.midi) + rowH * 0.14;
           const bh = Math.max(rowH * 0.72, 2.5);
-          ctx.globalAlpha = (on ? 1 : 0.16) * (0.5 + 0.5 * n.velocity);
+          ctx.globalAlpha = (on ? 1 : 0.16) * (0.15 + 0.85 * n.velocity);
           roundRect(ctx, x, y, bw, bh, Math.min(2.5, bh / 2));
           ctx.fill();
         }
       });
       ctx.globalAlpha = 1;
+      layoutRef.current = { lo, hi, px, scroll, rowH, totalTicks };
 
       if (playheadSec != null) {
         const x = xOf(playheadSec / secondsPerTick(song));
@@ -250,12 +265,39 @@ export function PianoRoll({ song, engine, playing, audible }: Props) {
     e.currentTarget.setPointerCapture(e.pointerId);
   };
   const onPointerMove = (e: React.PointerEvent) => {
-    if (!dragRef.current) return;
-    scrollRef.current = dragRef.current.scroll - (e.clientX - dragRef.current.x);
-    redraw();
+    if (dragRef.current) {
+      scrollRef.current = dragRef.current.scroll - (e.clientX - dragRef.current.x);
+      setTooltip(null);
+      redraw();
+      return;
+    }
+    if (!song || !layoutRef.current || !canvasRef.current) { setTooltip(null); return; }
+    const rect = canvasRef.current.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const { lo, hi, px, scroll, rowH } = layoutRef.current;
+    const tickAt = (mx - GUTTER + scroll) / px;
+    const midiAt = hi - Math.floor((my - RULER) / rowH);
+
+    let hit: { note: string; vel: string } | null = null;
+    for (const track of song.tracks) {
+      for (const n of track.notes) {
+        if (n.midi !== midiAt) continue;
+        if (tickAt >= n.ticks && tickAt < n.ticks + n.durationTicks) {
+          hit = { note: noteName(n.midi), vel: `${velLabel(n.velocity)} (${Math.round(n.velocity * 127)})` };
+          break;
+        }
+      }
+      if (hit) break;
+    }
+    setTooltip(hit ? { x: e.clientX - rect.left, y: e.clientY - rect.top, text: `${hit.note}  ${hit.vel}` } : null);
   };
   const endDrag = () => {
     dragRef.current = null;
+  };
+  const onPointerLeave = () => {
+    endDrag();
+    setTooltip(null);
   };
 
   const nudge = (factor: number) => {
@@ -276,10 +318,18 @@ export function PianoRoll({ song, engine, playing, audible }: Props) {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
-        onPointerLeave={endDrag}
+        onPointerLeave={onPointerLeave}
       >
         <canvas ref={canvasRef} className="block h-full w-full" />
       </div>
+      {tooltip && (
+        <div
+          className="pointer-events-none absolute rounded border border-line bg-panel/90 px-2 py-1 font-mono text-[11px] text-cream backdrop-blur"
+          style={{ left: tooltip.x + 12, top: tooltip.y - 28 }}
+        >
+          {tooltip.text}
+        </div>
+      )}
       {song && (
         <div className="absolute right-3 top-3 flex items-center gap-1 rounded-lg border border-line bg-panel/80 px-1 py-1 backdrop-blur">
           <ZoomBtn label="−" onClick={() => nudge(1 / 1.4)} disabled={zoom <= 1.001} />

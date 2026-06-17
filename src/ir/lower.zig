@@ -311,13 +311,7 @@ fn resolvePhrasePattern(self: *Self, name: []const u8) LowerError!Pattern {
 
             .dynamic_shape => |d| {
                 const start_tick = self.tickForPosition(d.position);
-                // Assumes dynamics appear in chronological order within the
-                // phrase (true for any reasonable composition) - the shape
-                // ramps from whatever level was active just before it.
-                const from_velocity = if (breakpoints.items.len > 0)
-                    breakpoints.items[breakpoints.items.len - 1].velocity
-                else
-                    default_velocity;
+                const from_velocity = velocityAt(breakpoints.items, start_tick);
 
                 try breakpoints.append(self.allocator, .{
                     .tick = start_tick,

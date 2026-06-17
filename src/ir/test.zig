@@ -474,6 +474,70 @@ test "full example with inline chords, arp in phrase, and mixed tracks" {
     try testing.expect(result.notes.len > 0);
 }
 
+test "dynamics swell with arp produces crescendo then diminuendo" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const result = try lower(arena.allocator(),
+        \\tempo 100
+        \\time_signature 4/4
+        \\
+        \\chord Cmaj = [B3 C4 E4 G3]
+        \\chord Dmin = [F4 A3 C4 D4]
+        \\
+        \\phrase chords =
+        \\  Cmaj.whole arp.up_down x2
+        \\  Dmin.whole arp.up_down x2
+        \\
+        \\  dynamic @0 pp
+        \\  dynamic @0 crescendo to fff over 1 bar
+        \\  dynamic @1 diminuendo to ppp over 1 bar
+        \\
+        \\section loop =
+        \\  track chords: chords
+        \\
+        \\song =
+        \\  loop
+    );
+
+    // up_down on 4 notes = 6 steps per cycle, x2 = 12 notes per chord, 24 total
+    try testing.expectEqual(@as(usize, 24), result.notes.len);
+
+    // Sort by start tick for sequential analysis
+    const sorted = try arena.allocator().dupe(score.NoteEvent, result.notes);
+    std.mem.sort(score.NoteEvent, sorted, {}, struct {
+        fn f(_: void, a: score.NoteEvent, b: score.NoteEvent) bool {
+            return if (a.start != b.start) a.start < b.start else a.pitch < b.pitch;
+        }
+    }.f);
+
+    // First note (tick 0) should be pp (32)
+    try testing.expectEqual(@as(u8, 32), sorted[0].velocity);
+
+    // Bar 1 (ticks 0–1919): notes should crescendo toward fff (127)
+    // Each arp step = 1920/12 = 160 ticks
+    // Verify velocity increases across bar 1
+    var prev_vel: u8 = 0;
+    for (sorted[0..12]) |n| {
+        try testing.expect(n.start < 1920); // all in bar 1
+        try testing.expect(n.velocity >= prev_vel);
+        prev_vel = n.velocity;
+    }
+
+    // Bar 2 (ticks 1920–3839): notes should diminuendo toward ppp (16)
+    // First note of bar 2 should be near fff
+    try testing.expect(sorted[12].velocity > 100);
+    // Last note of bar 2 should be much quieter
+    try testing.expect(sorted[23].velocity < sorted[12].velocity);
+    // Verify velocity decreases across bar 2
+    prev_vel = 127;
+    for (sorted[12..24]) |n| {
+        try testing.expect(n.start >= 1920); // all in bar 2
+        try testing.expect(n.velocity <= prev_vel);
+        prev_vel = n.velocity;
+    }
+}
+
 test "missing song declaration is reported" {
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();

@@ -4,7 +4,7 @@ import { EditorView } from "@codemirror/view";
 
 const STRUCTURE = new Set(["tempo", "time_signature", "chord", "phrase", "section", "song", "track"]);
 const FLOW = new Set([
-  "dynamic", "crescendo", "decrescendo", "transpose", "reverse", "augment",
+  "dynamic", "crescendo", "diminuendo", "transpose", "reverse", "augment",
   "diminish", "rest", "to", "over", "bar", "bars", "arp",
 ]);
 const DURATIONS = new Set([
