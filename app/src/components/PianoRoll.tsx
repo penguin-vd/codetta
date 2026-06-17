@@ -275,7 +275,7 @@ export function PianoRoll({ song, engine, playing, audible }: Props) {
     const rect = canvasRef.current.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
-    const { lo, hi, px, scroll, rowH } = layoutRef.current;
+    const { hi, px, scroll, rowH } = layoutRef.current;
     const tickAt = (mx - GUTTER + scroll) / px;
     const midiAt = hi - Math.floor((my - RULER) / rowH);
 
