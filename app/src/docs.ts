@@ -66,7 +66,7 @@ export const DOCS: DocEntry[] = [
     syntax: "phrase <Name> =\n  <element> <element> ...",
     example: "phrase melody =\n  C4.quarter E4.quarter G4.half\n  [C4 E4 G4].2whole arp.bounce x2\n  dynamic @0 p",
     body: [
-      "Elements are juxtaposed in time: a note (C4.quarter), a rest (rest.quarter), a chord reference (Cmaj.half), an inline chord ([C4 E4 G4].whole), a positioned element (@1.1 C3.whole), or a dynamic.",
+      "Elements are juxtaposed in time: a note (C4.quarter), a rest (rest.quarter), a chord reference (Cmaj.half), an inline chord ([C4 E4 G4].whole), a voice marker (@0 resets the cursor for a second voice), or a dynamic.",
       "Elements can have transforms (transpose, reverse, arp, etc.) and repeats (* N) applied directly.",
       "Phrases are placed onto tracks inside a section, where they can be further transformed and repeated.",
     ],

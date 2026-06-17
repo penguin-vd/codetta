@@ -22,7 +22,7 @@ reason about `.coda` files.
 6. [Rests](#rests)
 7. [Chords](#chords)
 8. [Phrases](#phrases)
-9. [Positioning (`@bar.beat`)](#positioning)
+9. [Voices (`@bar.beat` cursor reset)](#voices)
 10. [Dynamics](#dynamics)
 11. [Sections and tracks](#sections-and-tracks)
 12. [Transforms](#transforms)
@@ -137,10 +137,10 @@ A bare note on its own is only a pitch; to sound it you give it a
 
 ## Durations
 
-A duration is written as a dot, a length keyword, and an optional `.dot` to dot it:
+A duration is written as a dot, an optional integer multiplier, a length keyword, and an optional `.dot` to dot it:
 
 ```
-.<whole|half|quarter|eighth|sixteenth>[.dot]
+.[N]<whole|half|quarter|eighth|sixteenth>[.dot]
 ```
 
 A duration is a **fraction of a full bar**, not a fixed note value:
@@ -164,6 +164,16 @@ an eighth):
 C4.quarter        -- a quarter of a bar
 E4.quarter.dot    -- 1.5× that
 rest.half
+```
+
+Prefixing a length with an integer **multiplies** it, letting a single element
+span more than its base fraction. `.2whole` is two full bars; `.3half` is three
+half-bars (= 1.5 bars). The multiplier and `.dot` combine (`.2quarter.dot` is
+1.5× a double quarter):
+
+```coda
+C4.2whole         -- a note held for two bars
+[C4 E4 G4].3half  -- an inline chord spanning 1.5 bars
 ```
 
 See [Timing model](#timing-model) for exact tick values.
@@ -204,6 +214,19 @@ Cmaj.whole        -- C4, E4, G4 together for a whole note
 
 Chord references appear inside phrase bodies and directly inside tracks.
 
+### Inline chords
+
+You can also write a chord literal in place, without defining a name first.
+Wrap the notes in brackets and give the result a duration:
+
+```coda
+[C4 E4 G4].whole      -- the same notes, no definition needed
+[C3 G3].2half         -- inline chord with a multiplied duration
+```
+
+Inline chords are valid anywhere a chord reference is — in phrase bodies and
+directly in tracks — and accept the same transforms (e.g. `arp`).
+
 ---
 
 ## Phrases
@@ -217,16 +240,17 @@ phrase <Name> =
 
 A phrase element is one of:
 
-| Element        | Example          | Meaning                                  |
-| -------------- | ---------------- | ---------------------------------------- |
-| note           | `C4.quarter`     | a single pitch for a duration            |
-| rest           | `rest.quarter`   | silence for a duration                   |
-| chord ref      | `Cmaj.half`      | a named chord for a duration             |
-| positioned     | `@1.1 C3.whole`  | an element pinned to an absolute time    |
-| dynamic        | `dynamic @0 p`   | a loudness directive (see below)         |
+| Element        | Example            | Meaning                                  |
+| -------------- | ------------------ | ---------------------------------------- |
+| note           | `C4.quarter`       | a single pitch for a duration            |
+| rest           | `rest.quarter`     | silence for a duration                   |
+| chord ref      | `Cmaj.half`        | a named chord for a duration             |
+| inline chord   | `[C4 E4 G4].half`  | an unnamed chord for a duration          |
+| voice marker   | `@1.1`             | resets the cursor to an absolute time    |
+| dynamic        | `dynamic @0 p`     | a loudness directive (see below)         |
 
-Plain elements (note, rest, chord) are **juxtaposed in time**: an internal
-cursor starts at 0 and advances by each element's duration. So:
+Plain elements (note, rest, chord, inline chord) are **juxtaposed in time**: an
+internal cursor starts at 0 and advances by each element's duration. So:
 
 ```coda
 phrase melody =
@@ -234,7 +258,7 @@ phrase melody =
   D4.half C4.half
 ```
 
-`positioned` and `dynamic` elements are special — see the next two sections.
+`voice` and `dynamic` elements are special — see the next two sections.
 Phrases are placed onto tracks inside a [section](#sections-and-tracks), where
 they may be [transformed](#transforms) and [repeated](#repetition).
 
@@ -243,14 +267,16 @@ reference** (e.g. `Cmaj.half`).
 
 ---
 
-## Positioning
+## Voices
 
-By default phrase elements follow one another. A position pins the **next**
-element to an absolute time within the phrase, independent of (and without
-moving) the running cursor — this is how you write polyphony.
+By default phrase elements follow one another, advancing a single running
+cursor. A bare position **resets** that cursor to an absolute time within the
+phrase. Elements after it are placed sequentially from that point — so jumping
+the cursor back to an earlier time starts a second, overlapping **voice**. This
+is how you write polyphony and counterpoint.
 
 ```
-@<bar>.<beat> <element>
+@<bar>.<beat>
 ```
 
 `<beat>` is optional and defaults to 0 (`@2` means `@2.0`).
@@ -261,13 +287,15 @@ bar; `@1.1` is the second beat of the second bar. Here the `bar` index multiplie
 the bar length and `beat` multiplies the beat length (see [Timing model](#timing-model)).
 
 ```coda
-phrase melody =
-  C4.quarter E4.quarter G4.quarter rest.quarter
-  @1.1 C3.whole        -- a sustained C3 placed under bar 2, beat 2
+phrase counterpoint =
+  E4.whole E4.whole          -- upper voice: two bars
+  @0 C3.whole G3.whole       -- reset to the start; a lower voice runs underneath
 ```
 
-The positioned element does not advance the cursor, so the sequential line and
-the positioned voice overlap.
+A voice marker stands alone — it is not attached to an element. It simply moves
+the cursor; whatever notes follow build forward from there until the next marker
+(or the end of the phrase). The phrase's total length is the latest tick any
+voice reaches.
 
 ---
 
@@ -279,7 +307,7 @@ velocity breakpoints that every note in the phrase is then resolved against.
 > **Scope:** dynamics only have effect **inside a phrase**. Notes and chords
 > placed directly on a track (not via a phrase) always use the default velocity.
 
-Two forms, both anchored at a [position](#positioning):
+Two forms, both anchored at a [position](#voices):
 
 ### Level
 
@@ -338,11 +366,12 @@ section verse =
 ```
 
 Each `track` is one named voice. Its **content** is a phrase reference, a chord
-reference, a note, a rest, or a sequence of these, with optional
+reference, an inline chord, a note, a rest, or a sequence of these, with optional
 [transforms](#transforms) and [repetition](#repetition):
 
 ```coda
 track chords: Cmaj.half Fmaj.half Gmaj.half Cmaj.half   -- a sequence of chords
+track keys:   [C4 E4 G4].whole arp.bounce x2            -- an inline chord, arpeggiated
 track bass:   bassline transpose -5                     -- a transformed phrase
 track lead:   melody                                    -- a phrase reference
 ```
@@ -354,9 +383,9 @@ the section's start.
 Track names are the voices shown in the player and written to MIDI; the same
 name reused across sections refers to the same voice.
 
-> Tracks cannot contain `positioned` or `dynamic` elements directly — those live
-> only inside phrase bodies. To get polyphony or dynamics in a track, reference a
-> phrase that uses them.
+> Tracks cannot contain `voice` markers or `dynamic` directives directly — those
+> live only inside phrase bodies. To get polyphony or dynamics in a track,
+> reference a phrase that uses them.
 
 ---
 
@@ -375,11 +404,32 @@ melody transpose +5 augment x2
 | `reverse`            | reverses the target in time, so it plays end to start.              |
 | `augment x<n>`       | multiplies every duration (and the total length) by `n` — slower.   |
 | `diminish x<n>`      | divides every duration by `n` (integer division) — faster.          |
+| `arp[.<mode>] [x<n>]`| arpeggiates a chord: spreads its simultaneous notes across its duration. |
 
 ```coda
 track counter: melody transpose +2 reverse
 track slow:    melody augment x2
 track bass:    bassline transpose -5
+```
+
+### `arp`
+
+`arp` turns a stack of simultaneous notes (a chord, inline chord, or any
+overlapping target) into a sequence spread evenly across the original duration.
+An optional `.<mode>` chooses the order, and an optional `x<n>` repeats the
+pattern `n` times within the same span:
+
+| Mode        | Order                                                       |
+| ----------- | ----------------------------------------------------------- |
+| `up` (default) | low to high                                              |
+| `down`      | high to low                                                 |
+| `up_down`   | up then down, without repeating the top and bottom notes    |
+| `bounce`    | up then down, repeating the top and bottom notes            |
+
+```coda
+Cmaj.whole arp                 -- C E G, low to high over a whole note
+Cmaj.whole arp.down            -- G E C
+[C4 E4 G4].2whole arp.bounce x2  -- bounce pattern, cycled twice over two bars
 ```
 
 ---
@@ -465,17 +515,21 @@ Derived quantities, for a meter `num/den`:
 - **bar length** = `ppq * num * 4 / den` ticks
 - **beat length** = `ppq * 4 / den` ticks (a beat is the meter's denominator unit)
 
-A duration of fraction `f` of a bar is `bar_length * f` ticks (then `× 1.5` if
-dotted). In **4/4** (`bar_length = 1920`):
+A duration is `bar_length * multiplier / divisor` ticks, where `divisor` is
+`1, 2, 4, 8, 16` for `whole … sixteenth` and `multiplier` is the optional
+integer prefix (default 1); the result is then `× 1.5` if dotted. In **4/4**
+(`bar_length = 1920`):
 
-| Duration    | Ticks (4/4) |
-| ----------- | ----------- |
-| `whole`     | 1920        |
-| `half`      | 960         |
-| `quarter`   | 480         |
-| `eighth`    | 240         |
-| `sixteenth` | 120         |
-| `quarter.dot` | 720       |
+| Duration      | Ticks (4/4) |
+| ------------- | ----------- |
+| `whole`       | 1920        |
+| `half`        | 960         |
+| `quarter`     | 480         |
+| `eighth`      | 240         |
+| `sixteenth`   | 120         |
+| `quarter.dot` | 720         |
+| `2whole`      | 3840        |
+| `3half`       | 2880        |
 
 A position `@bar.beat` resolves to `bar * bar_length + beat * beat_length` ticks,
 relative to the phrase start (0-based).
@@ -504,26 +558,30 @@ section_def    = "section" name "=" { track } ;
 song_def       = "song" "=" { song_item } ;
 
 track          = "track" name ":" { track_item } ;
-track_item     = ( name | note | rest ) [ "." duration_tail ]
+track_item     = ( chord_ref | name | note_elem | rest_elem | inline_chord )
                  { transform } [ "*" int ] ;
 song_item      = name [ "*" int ] ;
 
-phrase_element = note_elem | rest_elem | chord_ref | positioned | dynamic ;
+phrase_element = note_elem | rest_elem | chord_ref | inline_chord
+               | voice | dynamic ;
 note_elem      = note duration ;
 rest_elem      = "rest" duration ;
 chord_ref      = name duration ;
-positioned     = "@" position phrase_element ;
+inline_chord   = "[" { note } "]" duration ;
+voice          = "@" position ;
 dynamic        = "dynamic" "@" position ( level | shape ) ;
 shape          = ( "crescendo" | "diminuendo" ) "to" level
                  "over" int ( "bar" | "bars" ) ;
 
-duration       = "." duration_kind [ "." "dot" ] ;
+duration       = "." [ int ] duration_kind [ "." "dot" ] ;
 duration_kind  = "whole" | "half" | "quarter" | "eighth" | "sixteenth" ;
 position       = int [ "." int ] ;
 transform      = "transpose" [ "+" | "-" ] int
                | "reverse"
                | "augment" multiplier
-               | "diminish" multiplier ;
+               | "diminish" multiplier
+               | "arp" [ "." arp_mode ] [ multiplier ] ;
+arp_mode       = "up" | "down" | "up_down" | "bounce" ;
 multiplier     = "x" int ;
 level          = "ppp" | "pp" | "p" | "mp" | "mf" | "f" | "ff" | "fff" ;
 
@@ -547,7 +605,7 @@ chord Gmaj = [G4 B4 D5]
 phrase melody =
   C4.quarter E4.quarter G4.quarter rest.quarter   -- a four-beat line...
   D4.half C4.half
-  @1.1 C3.whole                                    -- ...with a sustained note under bar 2
+  @0 C3.2whole                                     -- ...with a sustained voice underneath
 
   dynamic @0 p                                     -- start soft
   dynamic @0.3 crescendo to f over 1 bar           -- swell to forte
@@ -567,6 +625,7 @@ section verse =
 section chorus =
   track melody: melody transpose +5 augment x2      -- higher and twice as slow
   track chords: Cmaj.half Fmaj.half Gmaj.half Cmaj.half
+  track keys:   [C4 E4 G4].whole arp.bounce x2      -- an arpeggiated inline chord
   track bass:   bassline transpose -5
 
 song =
@@ -586,22 +645,25 @@ tempo 120                         -- bpm
 time_signature 4/4                -- meter
 
 chord Name = [C4 E4 G4]           -- named simultaneous notes
+[C4 E4 G4].whole                  -- inline chord (no definition needed)
 
 phrase Name =                     -- a line in time
   C4.quarter  rest.eighth  Cmaj.half
-  @1.0 G3.whole                   -- polyphony: pin an element (0-based @bar.beat)
+  @0 G3.2whole                    -- voice: reset cursor for polyphony (0-based @bar.beat)
   dynamic @0 mp                   -- loudness (phrases only)
   dynamic @0 crescendo to f over 2 bars
 
 section Name =                    -- parallel voices
   track lead: Name                -- a phrase reference
-  track bass: Name transpose -12  -- transforms: transpose ± / reverse / augment xN / diminish xN
-  track pad:  Cmaj.whole * 4      -- chords, sequences, repeat with * N
+  track bass: Name transpose -12  -- transforms: transpose ± / reverse / augment xN / diminish xN / arp[.mode] [xN]
+  track pad:  Cmaj.whole arp.up   -- arpeggiate a chord
+  track keys: Cmaj.whole * 4      -- chords, sequences, repeat with * N
 
 song =                            -- required arrangement
   Name  Name * 2  Other
 ```
 
 Pitches: `C4` (= MIDI 60), accidentals `#`/`b`. Durations are bar fractions:
-`whole half quarter eighth sixteenth`, dot with `.dot`. Dynamics: `ppp pp p mp
-mf f ff fff` (default `mf`). Comments start with `--`.
+`whole half quarter eighth sixteenth`, prefix an integer to multiply (`.2whole`),
+dot with `.dot`. Dynamics: `ppp pp p mp mf f ff fff` (default `mf`). Comments
+start with `--`.
