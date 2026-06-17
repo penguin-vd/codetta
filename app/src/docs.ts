@@ -54,8 +54,9 @@ export const DOCS: DocEntry[] = [
     body: [
       "Each note is a pitch letter A–G, an optional accidental (# or b), and an octave number — C4 is middle C (MIDI 60).",
       "Reference a chord by name plus a duration: Cmaj.half. A chord that is never referenced is flagged as unused.",
+      "You can also write inline chords directly: [C4 E4 G4].whole — no definition needed.",
     ],
-    see: ["note", "phrase", "duration"],
+    see: ["note", "phrase", "duration", "arp"],
   },
   {
     slug: "phrase",
@@ -63,12 +64,13 @@ export const DOCS: DocEntry[] = [
     kind: "Definition",
     summary: "A reusable line of music — notes, rests, chords, and dynamics in time.",
     syntax: "phrase <Name> =\n  <element> <element> ...",
-    example: "phrase melody =\n  C4.quarter E4.quarter G4.half\n  @1.1 C3.whole\n  dynamic @0 p",
+    example: "phrase melody =\n  C4.quarter E4.quarter G4.half\n  [C4 E4 G4].2whole arp.bounce x2\n  dynamic @0 p",
     body: [
-      "Elements are juxtaposed in time: a note (C4.quarter), a rest (rest.quarter), a chord reference (Cmaj.half), a positioned element (@1.1 C3.whole), or a dynamic.",
-      "Phrases are placed onto tracks inside a section, where they can be transformed and repeated.",
+      "Elements are juxtaposed in time: a note (C4.quarter), a rest (rest.quarter), a chord reference (Cmaj.half), an inline chord ([C4 E4 G4].whole), a positioned element (@1.1 C3.whole), or a dynamic.",
+      "Elements can have transforms (transpose, reverse, arp, etc.) and repeats (* N) applied directly.",
+      "Phrases are placed onto tracks inside a section, where they can be further transformed and repeated.",
     ],
-    see: ["note", "rest", "chord", "position", "dynamic", "section"],
+    see: ["note", "rest", "chord", "position", "dynamic", "section", "arp"],
   },
   {
     slug: "section",
@@ -89,12 +91,12 @@ export const DOCS: DocEntry[] = [
     kind: "Definition",
     summary: "A single named voice within a section.",
     syntax: "track <name>: <content>",
-    example: "track bass: bassline transpose -5 reverse",
+    example: "track bass: bassline transpose -5 reverse\ntrack keys: [C4 E4 G4].whole arp.bounce x2",
     body: [
-      "Track content is a phrase reference, chord refs, notes, or a sequence, with optional transforms (transpose, reverse, augment, diminish) and repeats (* N).",
+      "Track content is a phrase reference, chord refs, inline chords ([C4 E4].whole), notes, or a sequence of them, with optional transforms (transpose, reverse, augment, diminish, arp) and repeats (* N).",
       "The track name becomes the voice shown in the player and MIDI export.",
     ],
-    see: ["section", "transpose", "reverse", "repeat"],
+    see: ["section", "transpose", "reverse", "repeat", "arp", "chord"],
   },
   {
     slug: "song",
@@ -128,11 +130,12 @@ export const DOCS: DocEntry[] = [
     title: "duration",
     kind: "Primitive",
     summary: "How long a note, rest, or chord lasts.",
-    syntax: ".<whole | half | quarter | eighth | sixteenth>[.dot]",
-    example: "C4.quarter   rest.half   Cmaj.whole   E4.quarter.dot",
+    syntax: ".[N]<whole | half | quarter | eighth | sixteenth>[.dot]",
+    example: "C4.quarter   rest.half   Cmaj.whole   E4.quarter.dot   C4.2whole",
     body: [
       "A duration attaches with a dot: C4.quarter. The available lengths are whole, half, quarter, eighth, and sixteenth.",
       "Add .dot to dot a duration, extending it by half — a dotted quarter equals a quarter plus an eighth.",
+      "Prefix with a number to multiply: .2whole spans two bars, .3half spans one and a half bars.",
     ],
     aliases: ["durations", "whole", "half", "quarter", "eighth", "sixteenth", "dot", "dotted"],
     see: ["note", "rest"],
@@ -227,6 +230,20 @@ export const DOCS: DocEntry[] = [
     example: "melody diminish x2",
     body: ["Divides every duration, speeding the line up — the inverse of augment."],
     see: ["augment", "duration"],
+  },
+  {
+    slug: "arp",
+    title: "arp",
+    kind: "Transform",
+    summary: "Arpeggiates a chord across its duration.",
+    syntax: "<target> arp[.mode] [xN]",
+    example: "Cmaj.whole arp\nCmaj.whole arp.down\nCmaj.2whole arp.bounce x2",
+    body: [
+      "Spreads simultaneous notes out in time. Modes: arp (or arp.up) plays low to high; arp.down plays high to low; arp.up_down goes up then down without repeating endpoints; arp.bounce goes up then down with repeated endpoints.",
+      "Add xN to cycle the pattern N times within the same duration. Combine with multi-bar durations (e.g. .2whole) for longer arpeggios.",
+    ],
+    aliases: ["up", "down", "up_down", "bounce"],
+    see: ["transpose", "reverse", "track", "chord"],
   },
 ];
 

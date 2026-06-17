@@ -87,6 +87,25 @@ test "definitions that are never referenced are warned about" {
     try testing.expect(find(diags, "Used` is never used") == null);
 }
 
+test "chord used via transform in a phrase is not flagged" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const diags = try collect(&arena,
+        \\tempo 120
+        \\time_signature 4/4
+        \\chord Cmaj = [C4 E4 G4]
+        \\phrase chords =
+        \\  Cmaj.2whole arp.bounce x2
+        \\section s =
+        \\  track a: chords
+        \\song =
+        \\  s
+    );
+
+    try testing.expect(find(diags, "Cmaj") == null);
+}
+
 test "syntax errors recover so several are reported at once" {
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();

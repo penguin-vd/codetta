@@ -31,6 +31,23 @@ const codaLinter = linter(
 // `validFor` lets CodeMirror filter the full set as the word grows, so we only
 // cross the WASM boundary once per word rather than on every keystroke.
 async function codaCompletions(context: CompletionContext): Promise<CompletionResult | null> {
+  // No completions inside comments
+  const line = context.state.doc.lineAt(context.pos);
+  const textBefore = line.text.slice(0, context.pos - line.from);
+  if (textBefore.includes("--")) return null;
+
+  // After `arp.` — offer arp mode completions only
+  const dotWord = context.matchBefore(/arp\.(\w*)$/);
+  if (dotWord) {
+    const items = await completions(context.state.doc.toString());
+    const modes = items.filter((c) => c.type === "property" && ["up", "down", "up_down", "bounce"].includes(c.label));
+    return {
+      from: dotWord.from + 4, // after "arp."
+      validFor: /^\w*$/,
+      options: modes.map((c) => ({ label: c.label, detail: c.detail, type: c.type })),
+    };
+  }
+
   const word = context.matchBefore(/\w+/);
   if (!word || (word.from === word.to && !context.explicit)) return null;
 

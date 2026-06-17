@@ -205,6 +205,275 @@ test "undefined chord reference is reported" {
     ));
 }
 
+test "arp.up spreads chord notes low to high" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const result = try lower(arena.allocator(),
+        \\chord Cmaj = [C4 E4 G4]
+        \\
+        \\section verse =
+        \\  track keys: Cmaj.whole arp
+        \\
+        \\song =
+        \\  verse
+    );
+
+    try testing.expectEqual(@as(usize, 3), result.notes.len);
+    // sorted low to high: C4(60), E4(64), G4(67)
+    try testing.expectEqual(@as(u8, 60), result.notes[0].pitch);
+    try testing.expectEqual(@as(u8, 64), result.notes[1].pitch);
+    try testing.expectEqual(@as(u8, 67), result.notes[2].pitch);
+    // whole = 1920 ticks, 3 notes -> each 640 ticks
+    try testing.expectEqual(@as(u32, 0), result.notes[0].start);
+    try testing.expectEqual(@as(u32, 640), result.notes[1].start);
+    try testing.expectEqual(@as(u32, 1280), result.notes[2].start);
+    for (result.notes) |n| try testing.expectEqual(@as(u32, 640), n.duration);
+}
+
+test "arp.down spreads chord notes high to low" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const result = try lower(arena.allocator(),
+        \\chord Cmaj = [C4 E4 G4]
+        \\
+        \\section verse =
+        \\  track keys: Cmaj.whole arp.down
+        \\
+        \\song =
+        \\  verse
+    );
+
+    try testing.expectEqual(@as(usize, 3), result.notes.len);
+    try testing.expectEqual(@as(u8, 67), result.notes[0].pitch); // G4
+    try testing.expectEqual(@as(u8, 64), result.notes[1].pitch); // E4
+    try testing.expectEqual(@as(u8, 60), result.notes[2].pitch); // C4
+}
+
+test "arp.up_down goes up then down without repeating endpoints" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const result = try lower(arena.allocator(),
+        \\chord Cmaj = [C4 E4 G4]
+        \\
+        \\section verse =
+        \\  track keys: Cmaj.whole arp.up_down
+        \\
+        \\song =
+        \\  verse
+    );
+
+    // 3 notes -> up_down = C E G E = 4 steps
+    try testing.expectEqual(@as(usize, 4), result.notes.len);
+    try testing.expectEqual(@as(u8, 60), result.notes[0].pitch); // C4
+    try testing.expectEqual(@as(u8, 64), result.notes[1].pitch); // E4
+    try testing.expectEqual(@as(u8, 67), result.notes[2].pitch); // G4
+    try testing.expectEqual(@as(u8, 64), result.notes[3].pitch); // E4
+    // 1920 / 4 = 480 ticks each
+    for (result.notes) |n| try testing.expectEqual(@as(u32, 480), n.duration);
+}
+
+test "arp.bounce goes up then down with repeated endpoints" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const result = try lower(arena.allocator(),
+        \\chord Cmaj = [C4 E4 G4]
+        \\
+        \\section verse =
+        \\  track keys: Cmaj.whole arp.bounce
+        \\
+        \\song =
+        \\  verse
+    );
+
+    // 3 notes -> bounce = C E G G E C = 6 steps
+    try testing.expectEqual(@as(usize, 6), result.notes.len);
+    try testing.expectEqual(@as(u8, 60), result.notes[0].pitch); // C4
+    try testing.expectEqual(@as(u8, 64), result.notes[1].pitch); // E4
+    try testing.expectEqual(@as(u8, 67), result.notes[2].pitch); // G4
+    try testing.expectEqual(@as(u8, 67), result.notes[3].pitch); // G4
+    try testing.expectEqual(@as(u8, 64), result.notes[4].pitch); // E4
+    try testing.expectEqual(@as(u8, 60), result.notes[5].pitch); // C4
+    // 1920 / 6 = 320 ticks each
+    for (result.notes) |n| try testing.expectEqual(@as(u32, 320), n.duration);
+}
+
+test "arp with x2 cycles through the pattern twice" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const result = try lower(arena.allocator(),
+        \\chord Cmaj = [C4 E4 G4]
+        \\
+        \\section verse =
+        \\  track keys: Cmaj.whole arp x2
+        \\
+        \\song =
+        \\  verse
+    );
+
+    // 3 notes * 2 cycles = 6 steps, each 1920/6 = 320 ticks
+    try testing.expectEqual(@as(usize, 6), result.notes.len);
+    try testing.expectEqual(@as(u8, 60), result.notes[0].pitch); // C4
+    try testing.expectEqual(@as(u8, 64), result.notes[1].pitch); // E4
+    try testing.expectEqual(@as(u8, 67), result.notes[2].pitch); // G4
+    try testing.expectEqual(@as(u8, 60), result.notes[3].pitch); // C4 (cycle 2)
+    try testing.expectEqual(@as(u8, 64), result.notes[4].pitch); // E4
+    try testing.expectEqual(@as(u8, 67), result.notes[5].pitch); // G4
+    for (result.notes) |n| try testing.expectEqual(@as(u32, 320), n.duration);
+}
+
+test "duration multiplier scales note length" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const result = try lower(arena.allocator(),
+        \\phrase melody = C4.2whole
+        \\
+        \\section verse =
+        \\  track lead: melody
+        \\
+        \\song =
+        \\  verse
+    );
+
+    try testing.expectEqual(@as(usize, 1), result.notes.len);
+    // 2whole = 2 * 1920 = 3840 ticks
+    try testing.expectEqual(@as(u32, 3840), result.notes[0].duration);
+}
+
+test "arp.bounce x2 with multi-bar duration" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const result = try lower(arena.allocator(),
+        \\chord Cmaj = [C4 E4 G4]
+        \\
+        \\section verse =
+        \\  track keys: Cmaj.2whole arp.bounce x2
+        \\
+        \\song =
+        \\  verse
+    );
+
+    // bounce cycle = 6 steps, x2 = 12 steps over 3840 ticks -> 320 each
+    try testing.expectEqual(@as(usize, 12), result.notes.len);
+    for (result.notes) |n| try testing.expectEqual(@as(u32, 320), n.duration);
+    // first cycle: C E G G E C
+    try testing.expectEqual(@as(u8, 60), result.notes[0].pitch);
+    try testing.expectEqual(@as(u8, 67), result.notes[2].pitch);
+    try testing.expectEqual(@as(u8, 67), result.notes[3].pitch);
+    try testing.expectEqual(@as(u8, 60), result.notes[5].pitch);
+    // second cycle repeats
+    try testing.expectEqual(@as(u8, 60), result.notes[6].pitch);
+    try testing.expectEqual(@as(u8, 60), result.notes[11].pitch);
+}
+
+test "inline chord in a track expands into simultaneous notes" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const result = try lower(arena.allocator(),
+        \\section verse =
+        \\  track keys: [C4 E4 G4].whole
+        \\
+        \\song =
+        \\  verse
+    );
+
+    try testing.expectEqual(@as(usize, 3), result.notes.len);
+    for (result.notes) |n| {
+        try testing.expectEqual(@as(u32, 0), n.start);
+        try testing.expectEqual(@as(u32, 1920), n.duration);
+    }
+    try testing.expectEqual(@as(u8, 60), result.notes[0].pitch);
+    try testing.expectEqual(@as(u8, 64), result.notes[1].pitch);
+    try testing.expectEqual(@as(u8, 67), result.notes[2].pitch);
+}
+
+test "inline chord in a track followed by a note forms a sequence" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const result = try lower(arena.allocator(),
+        \\section verse =
+        \\  track test: [B3 C4 E4 G4].whole G4.quarter
+        \\
+        \\song =
+        \\  verse
+    );
+
+    try testing.expectEqual(@as(usize, 5), result.notes.len);
+    // chord at tick 0
+    for (result.notes[0..4]) |n| try testing.expectEqual(@as(u32, 0), n.start);
+    // G4.quarter after the whole bar
+    try testing.expectEqual(@as(u32, 1920), result.notes[4].start);
+    try testing.expectEqual(@as(u8, 67), result.notes[4].pitch);
+}
+
+test "inline chord in a phrase with arp transform" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const result = try lower(arena.allocator(),
+        \\phrase cool =
+        \\  [C4 E4 G4].2whole arp.up_down x2
+        \\
+        \\section verse =
+        \\  track keys: cool
+        \\
+        \\song =
+        \\  verse
+    );
+
+    // up_down on 3 notes = 4 steps per cycle, x2 = 8 steps over 3840 ticks
+    try testing.expectEqual(@as(usize, 8), result.notes.len);
+    try testing.expectEqual(@as(u8, 60), result.notes[0].pitch); // C4
+    try testing.expectEqual(@as(u8, 64), result.notes[1].pitch); // E4
+    try testing.expectEqual(@as(u8, 67), result.notes[2].pitch); // G4
+    try testing.expectEqual(@as(u8, 64), result.notes[3].pitch); // E4 (down)
+    // cycle 2
+    try testing.expectEqual(@as(u8, 60), result.notes[4].pitch);
+    for (result.notes) |n| try testing.expectEqual(@as(u32, 480), n.duration); // 3840/8
+}
+
+test "full example with inline chords, arp in phrase, and mixed tracks" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const result = try lower(arena.allocator(),
+        \\tempo 100
+        \\time_signature 4/4
+        \\
+        \\chord Cmaj = [B3 C4 E4 G3]
+        \\chord Dmin = [F4 A3 C4 D4]
+        \\
+        \\phrase bassC =
+        \\  C2.quarter C3.quarter C2.quarter C3.quarter
+        \\phrase bassD =
+        \\  D2.quarter D3.quarter D2.quarter D3.quarter
+        \\
+        \\phrase cool =
+        \\    Cmaj.2whole arp.up_down x2
+        \\
+        \\section loop =
+        \\  track chords: cool
+        \\  track bass:   bassC bassC bassD bassD
+        \\  track test: [B3 C4 E4 G4].whole G4.quarter
+        \\
+        \\song =
+        \\  loop * 4
+    );
+
+    try testing.expectEqual(@as(u32, 100), result.tempo_bpm);
+    try testing.expectEqual(@as(usize, 3), result.tracks.len);
+    // should have notes from all three tracks across 4 repeats
+    try testing.expect(result.notes.len > 0);
+}
+
 test "missing song declaration is reported" {
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();

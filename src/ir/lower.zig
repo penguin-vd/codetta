@@ -170,6 +170,7 @@ fn resolvePattern(self: *Self, index: NodeIndex) LowerError!Pattern {
         .note => |n| self.singleNote(n.pitched, n.duration),
         .rest => |n| .{ .notes = &.{}, .length = self.ticksFor(n.duration) },
         .chord_ref => |n| self.resolveChordRef(n.name, n.duration),
+        .inline_chord => |n| self.resolveInlineChord(n.notes, n.duration),
         .identifier => |n| self.resolvePhrasePattern(n.name),
         .sequence => |n| self.resolveSequence(n.items),
         .repeat => |n| self.resolveRepeat(n.target, n.count),
@@ -189,6 +190,15 @@ fn resolveChordRef(self: *Self, name: []const u8, duration: ast.Duration) !Patte
     const pitches = self.chord_defs.get(name) orelse return error.UndefinedReference;
     const ticks = self.ticksFor(duration);
 
+    const notes = try self.allocator.alloc(RelativeNote, pitches.len);
+    for (pitches, notes) |p, *n| {
+        n.* = .{ .start = 0, .duration = ticks, .pitch = midiPitch(p), .velocity = default_velocity };
+    }
+    return .{ .notes = notes, .length = ticks };
+}
+
+fn resolveInlineChord(self: *Self, pitches: []const ast.Pitched, duration: ast.Duration) !Pattern {
+    const ticks = self.ticksFor(duration);
     const notes = try self.allocator.alloc(RelativeNote, pitches.len);
     for (pitches, notes) |p, *n| {
         n.* = .{ .start = 0, .duration = ticks, .pitch = midiPitch(p), .velocity = default_velocity };
@@ -241,6 +251,25 @@ fn resolveTransform(self: *Self, target: NodeIndex, op: ast.TransformKind) !Patt
             for (notes) |*n| {
                 n.start /= safe_factor;
                 n.duration /= safe_factor;
+            }
+        },
+        .arp => |a| {
+            if (notes.len > 0) {
+                std.mem.sort(RelativeNote, notes, {}, lessByPitch);
+                const one_cycle = try arpSequence(self.allocator, notes.len, a.mode);
+                const total_steps = one_cycle.len * a.cycles;
+                const step = sub.length / @as(u32, @intCast(total_steps));
+                const out = try self.allocator.alloc(RelativeNote, total_steps);
+                for (0..total_steps) |i| {
+                    const src_i = one_cycle[i % one_cycle.len];
+                    out[i] = .{
+                        .start = @as(u32, @intCast(i)) * step,
+                        .duration = step,
+                        .pitch = notes[src_i].pitch,
+                        .velocity = notes[src_i].velocity,
+                    };
+                }
+                return .{ .notes = out, .length = sub.length };
             }
         },
     }
@@ -362,6 +391,41 @@ fn lessByStart(_: void, a: NoteEvent, b: NoteEvent) bool {
     return a.start < b.start;
 }
 
+fn lessByPitch(_: void, a: RelativeNote, b: RelativeNote) bool {
+    return a.pitch < b.pitch;
+}
+
+fn arpSequence(allocator: Allocator, n: usize, mode: ast.ArpMode) ![]const usize {
+    switch (mode) {
+        .up => {
+            const buf = try allocator.alloc(usize, n);
+            for (buf, 0..) |*b, i| b.* = i;
+            return buf;
+        },
+        .down => {
+            const buf = try allocator.alloc(usize, n);
+            for (buf, 0..) |*b, i| b.* = n - 1 - i;
+            return buf;
+        },
+        .up_down => {
+            if (n <= 1) return arpSequence(allocator, n, .up);
+            const len = 2 * (n - 1);
+            const buf = try allocator.alloc(usize, len);
+            for (0..n) |i| buf[i] = i;
+            for (1..n - 1) |i| buf[n - 1 + i] = n - 1 - i;
+            return buf;
+        },
+        .bounce => {
+            if (n <= 1) return arpSequence(allocator, n, .up);
+            const len = 2 * n;
+            const buf = try allocator.alloc(usize, len);
+            for (0..n) |i| buf[i] = i;
+            for (0..n) |i| buf[n + i] = n - 1 - i;
+            return buf;
+        },
+    }
+}
+
 fn lessByTick(_: void, a: DynamicPoint, b: DynamicPoint) bool {
     return a.tick < b.tick;
 }
@@ -389,7 +453,7 @@ fn ticksFor(self: *Self, duration: ast.Duration) u32 {
         .sixteenth => 16,
     };
 
-    var ticks = self.barTicks() / divisor;
+    var ticks = self.barTicks() * duration.multiplier / divisor;
     if (duration.dotted) ticks += ticks / 2;
     return ticks;
 }

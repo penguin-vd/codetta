@@ -116,7 +116,7 @@ test "section with tracks, repetition and transformations" {
 
     const program = try parse(arena.allocator(),
         \\section verse =
-        \\  track melody:  melody transpose +5 reverse augment x2
+        \\  track melody:  melody arp transpose +5 reverse augment x2
         \\  track bass:    bassline * 2
     );
 
@@ -128,7 +128,7 @@ test "section with tracks, repetition and transformations" {
     try testing.expectEqualStrings("melody", melody_track.name);
 
     // melody transpose +5 reverse augment x2
-    // -> transform(augment x2, transform(reverse, transform(transpose +5, identifier(melody))))
+    // -> transform(augment x2, transform(reverse, transform(transpose +5, transform(arp, identifier(melody)))))
     const augment = program.nodes[melody_track.content].transform;
     try testing.expectEqual(@as(u32, 2), augment.op.augment);
 
@@ -137,7 +137,11 @@ test "section with tracks, repetition and transformations" {
 
     const transpose = program.nodes[reverse.target].transform;
     try testing.expectEqual(@as(i32, 5), transpose.op.transpose);
-    try testing.expectEqualStrings("melody", program.nodes[transpose.target].identifier.name);
+
+    const arp = program.nodes[transpose.target].transform;
+    try testing.expectEqual(ast.TransformKind{ .arp = .{ .mode = .up } }, arp.op);
+
+    try testing.expectEqualStrings("melody", program.nodes[arp.target].identifier.name);
 
     const bass_track = program.nodes[section.tracks[1]].track;
     const repeat = program.nodes[bass_track.content].repeat;
@@ -220,6 +224,118 @@ test "invalid multiplier reports location" {
         \\section verse =
         \\  track melody: melody augment xmany
     , 2, 32, "invalid multiplier 'xmany'");
+}
+
+test "inline chord in a track" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const program = try parse(arena.allocator(),
+        \\section verse =
+        \\  track keys: [C4 E4 G4].whole
+    );
+
+    const section = program.nodes[program.top_level[0]].section_def;
+    const track = program.nodes[section.tracks[0]].track;
+    const chord = program.nodes[track.content].inline_chord;
+    try testing.expectEqual(@as(usize, 3), chord.notes.len);
+    try testing.expectEqual(ast.Pitch.c, chord.notes[0].pitch);
+    try testing.expectEqual(ast.Pitch.e, chord.notes[1].pitch);
+    try testing.expectEqual(ast.Pitch.g, chord.notes[2].pitch);
+    try testing.expectEqual(ast.DurationKind.whole, chord.duration.kind);
+}
+
+test "inline chord with transforms in a track" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const program = try parse(arena.allocator(),
+        \\section verse =
+        \\  track keys: [C4 E4 G4].whole arp.bounce x2 transpose +3
+    );
+
+    const section = program.nodes[program.top_level[0]].section_def;
+    const track = program.nodes[section.tracks[0]].track;
+
+    // transpose +3 wraps arp.bounce x2 wraps inline_chord
+    const transpose = program.nodes[track.content].transform;
+    try testing.expectEqual(@as(i32, 3), transpose.op.transpose);
+
+    const arp = program.nodes[transpose.target].transform;
+    try testing.expectEqual(ast.ArpMode.bounce, arp.op.arp.mode);
+    try testing.expectEqual(@as(u32, 2), arp.op.arp.cycles);
+
+    const chord = program.nodes[arp.target].inline_chord;
+    try testing.expectEqual(@as(usize, 3), chord.notes.len);
+}
+
+test "inline chord in a phrase with transform and repeat" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const program = try parse(arena.allocator(),
+        \\phrase cool =
+        \\  [C4 E4 G4].2whole arp.up_down x2
+    );
+
+    const phrase = program.nodes[program.top_level[0]].phrase_def;
+    try testing.expectEqual(@as(usize, 1), phrase.body.len);
+
+    // arp.up_down x2 wraps inline_chord
+    const arp = program.nodes[phrase.body[0]].transform;
+    try testing.expectEqual(ast.ArpMode.up_down, arp.op.arp.mode);
+    try testing.expectEqual(@as(u32, 2), arp.op.arp.cycles);
+
+    const chord = program.nodes[arp.target].inline_chord;
+    try testing.expectEqual(@as(usize, 3), chord.notes.len);
+    try testing.expectEqual(@as(u32, 2), chord.duration.multiplier);
+    try testing.expectEqual(ast.DurationKind.whole, chord.duration.kind);
+}
+
+test "inline chord followed by a note in a track forms a sequence" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const program = try parse(arena.allocator(),
+        \\section verse =
+        \\  track keys: [B3 C4].half G4.quarter
+    );
+
+    const section = program.nodes[program.top_level[0]].section_def;
+    const track = program.nodes[section.tracks[0]].track;
+    const seq = program.nodes[track.content].sequence;
+    try testing.expectEqual(@as(usize, 2), seq.items.len);
+    _ = program.nodes[seq.items[0]].inline_chord;
+    _ = program.nodes[seq.items[1]].note;
+}
+
+test "duration with numeric multiplier" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const program = try parse(arena.allocator(), "phrase m =\n  C4.3quarter");
+    const phrase = program.nodes[program.top_level[0]].phrase_def;
+    const note = program.nodes[phrase.body[0]].note;
+    try testing.expectEqual(@as(u32, 3), note.duration.multiplier);
+    try testing.expectEqual(ast.DurationKind.quarter, note.duration.kind);
+}
+
+test "phrase element with transform and repeat" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const program = try parse(arena.allocator(), "phrase m =\n  C4.quarter transpose +5 * 3");
+    const phrase = program.nodes[program.top_level[0]].phrase_def;
+    try testing.expectEqual(@as(usize, 1), phrase.body.len);
+
+    // * 3 wraps transpose +5 wraps note
+    const repeat = program.nodes[phrase.body[0]].repeat;
+    try testing.expectEqual(@as(u32, 3), repeat.count);
+
+    const transpose = program.nodes[repeat.target].transform;
+    try testing.expectEqual(@as(i32, 5), transpose.op.transpose);
+
+    _ = program.nodes[transpose.target].note;
 }
 
 test "ignores comments" {

@@ -77,6 +77,18 @@ fn printNode(program: ast.Program, index: ast.NodeIndex, indent: usize) void {
             std.debug.print("\n", .{});
         },
 
+        .inline_chord => |n| {
+            printIndent(indent);
+            std.debug.print("inline_chord [", .{});
+            for (n.notes, 0..) |p, i| {
+                if (i != 0) std.debug.print(" ", .{});
+                printPitched(p);
+            }
+            std.debug.print("] ", .{});
+            printDuration(n.duration);
+            std.debug.print("\n", .{});
+        },
+
         .positioned => |n| {
             line(indent, "positioned @{d}.{d}", .{ n.position.bar, n.position.beat });
             printNode(program, n.target, indent + 1);
@@ -108,6 +120,11 @@ fn printNode(program: ast.Program, index: ast.NodeIndex, indent: usize) void {
                 .reverse => std.debug.print("reverse\n", .{}),
                 .augment => |factor| std.debug.print("augment x{d}\n", .{factor}),
                 .diminish => |factor| std.debug.print("diminish x{d}\n", .{factor}),
+                .arp => |a| {
+                    std.debug.print("arp.{s}", .{@tagName(a.mode)});
+                    if (a.cycles > 1) std.debug.print(" x{d}", .{a.cycles});
+                    std.debug.print("\n", .{});
+                },
             }
             printNode(program, n.target, indent + 1);
         },
@@ -153,6 +170,7 @@ fn pitchChar(p: ast.Pitch) u8 {
 }
 
 fn printDuration(d: ast.Duration) void {
+    if (d.multiplier > 1) std.debug.print("{d}", .{d.multiplier});
     std.debug.print("{s}", .{@tagName(d.kind)});
     if (d.dotted) std.debug.print(".dot", .{});
 }

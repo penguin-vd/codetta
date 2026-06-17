@@ -149,6 +149,9 @@ const Checker = struct {
         switch (self.program.nodes[index]) {
             .chord_ref => |n| try self.useChord(n.name, n.line, n.column),
             .positioned => |n| try self.phraseElement(n.target),
+            .transform => |n| try self.phraseElement(n.target),
+            .repeat => |n| try self.phraseElement(n.target),
+            .sequence => |n| for (n.items) |item| try self.phraseElement(item),
             else => {},
         }
     }

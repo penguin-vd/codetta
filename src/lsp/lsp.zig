@@ -20,10 +20,18 @@ const keywords = [_]Candidate{
     .{ .label = "reverse", .detail = "play the target backwards", .type = "keyword" },
     .{ .label = "augment", .detail = "stretch durations by xN", .type = "keyword" },
     .{ .label = "diminish", .detail = "compress durations by xN", .type = "keyword" },
+    .{ .label = "arp", .detail = "arpeggiate (default: up)", .type = "keyword" },
     .{ .label = "crescendo", .detail = "grow louder toward a level", .type = "keyword" },
     .{ .label = "diminuendo", .detail = "fade quieter toward a level", .type = "keyword" },
     .{ .label = "to", .detail = "target level of a dynamic shape", .type = "keyword" },
     .{ .label = "over", .detail = "span of a dynamic shape, in bars", .type = "keyword" },
+};
+
+const arp_modes = [_]Candidate{
+    .{ .label = "up", .detail = "arpeggiate low to high", .type = "property" },
+    .{ .label = "down", .detail = "arpeggiate high to low", .type = "property" },
+    .{ .label = "up_down", .detail = "up then down (no repeated endpoints)", .type = "property" },
+    .{ .label = "bounce", .detail = "up then down (repeated endpoints)", .type = "property" },
 };
 
 const durations = [_]Candidate{
@@ -50,6 +58,7 @@ pub fn completionsJson(allocator: Allocator, source: []const u8) ![]const u8 {
     var items: std.ArrayList(Candidate) = .empty;
     try items.appendSlice(allocator, &keywords);
     try items.appendSlice(allocator, &durations);
+    try items.appendSlice(allocator, &arp_modes);
     try items.appendSlice(allocator, &dynamics);
 
     var parser = Parser.init(allocator, source);
@@ -115,7 +124,16 @@ fn location(allocator: Allocator, line: u32, column: u32) ![]const u8 {
 fn builtin(word: []const u8) ?Candidate {
     for (keywords) |c| if (std.mem.eql(u8, c.label, word)) return c;
     for (durations) |c| if (std.mem.eql(u8, c.label, word)) return c;
+    for (arp_modes) |c| if (std.mem.eql(u8, c.label, word)) return c;
     for (dynamics) |c| if (std.mem.eql(u8, c.label, word)) return c;
+
+    // Match duration with numeric prefix, e.g. "2whole", "3half"
+    var i: usize = 0;
+    while (i < word.len and word[i] >= '0' and word[i] <= '9') i += 1;
+    if (i > 0 and i < word.len) {
+        for (durations) |c| if (std.mem.eql(u8, c.label, word[i..])) return c;
+    }
+
     return null;
 }
 

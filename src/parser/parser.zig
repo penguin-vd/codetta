@@ -254,14 +254,21 @@ fn parseSongDef(self: *Self) !NodeIndex {
 }
 
 fn parsePhraseElement(self: *Self) ParseError!?NodeIndex {
-    return switch (self.cur_token.tokenType) {
+    var node: NodeIndex = switch (self.cur_token.tokenType) {
         .note => try self.parseNoteElement(),
         .rest => try self.parseRestElement(),
         .identifier => try self.parseChordRefElement(),
-        .at => try self.parsePositionedElement(),
-        .dynamic => try self.parseDynamicElement(),
-        else => null,
+        .lbracket => try self.parseInlineChord(),
+        .at => return try self.parsePositionedElement(),
+        .dynamic => return try self.parseDynamicElement(),
+        else => return null,
     };
+
+    while (try self.tryParseTransform()) |kind| {
+        node = try self.addNode(.{ .transform = .{ .target = node, .op = kind } });
+    }
+
+    return try self.maybeWrapRepeat(node);
 }
 
 fn parseNoteElement(self: *Self) !NodeIndex {
@@ -277,6 +284,23 @@ fn parseRestElement(self: *Self) !NodeIndex {
     const duration = try self.parseDuration();
 
     return self.addNode(.{ .rest = .{ .duration = duration } });
+}
+
+fn parseInlineChord(self: *Self) !NodeIndex {
+    _ = try self.expect(.lbracket);
+
+    var notes: std.ArrayList(ast.Pitched) = .empty;
+    while (self.cur_token.tokenType != .rbracket) {
+        const note_tok = try self.expect(.note);
+        try notes.append(self.allocator, try self.parsePitched(note_tok));
+    }
+    _ = try self.expect(.rbracket);
+
+    const duration = try self.parseDuration();
+    return self.addNode(.{ .inline_chord = .{
+        .notes = try notes.toOwnedSlice(self.allocator),
+        .duration = duration,
+    } });
 }
 
 fn parseChordRefElement(self: *Self) !NodeIndex {
@@ -370,6 +394,7 @@ fn parseTrackItem(self: *Self) !?NodeIndex {
         .identifier => try self.parseIdentifierOrChordRef(),
         .note => try self.parseNoteElement(),
         .rest => try self.parseRestElement(),
+        .lbracket => try self.parseInlineChord(),
         else => return null,
     };
 
@@ -434,6 +459,23 @@ fn tryParseTransform(self: *Self) !?ast.TransformKind {
         self.advance();
         return .reverse;
     }
+    if (std.mem.eql(u8, name, "arp")) {
+        self.advance();
+        var mode: ast.ArpMode = .up;
+        if (self.cur_token.tokenType == .dot) {
+            self.advance();
+            const mode_tok = try self.expect(.identifier);
+            mode = std.meta.stringToEnum(ast.ArpMode, mode_tok.literal) orelse
+                return self.failAt(mode_tok, "unknown arp mode '{s}'", .{mode_tok.literal});
+        }
+        var cycles: u32 = 1;
+        if (self.cur_token.tokenType == .identifier and
+            self.cur_token.literal.len >= 2 and self.cur_token.literal[0] == 'x')
+        {
+            cycles = try self.parseMultiplier();
+        }
+        return .{ .arp = .{ .mode = mode, .cycles = cycles } };
+    }
     if (std.mem.eql(u8, name, "transpose")) {
         self.advance();
         return .{ .transpose = try self.parseSignedInt() };
@@ -453,6 +495,13 @@ fn tryParseTransform(self: *Self) !?ast.TransformKind {
 
 fn parseDuration(self: *Self) !ast.Duration {
     _ = try self.expect(.dot);
+
+    var multiplier: u32 = 1;
+    if (self.cur_token.tokenType == .int) {
+        multiplier = try self.parseIntTok(u32, self.cur_token);
+        self.advance();
+    }
+
     const dur_tok = try self.expect(.duration);
     const kind = std.meta.stringToEnum(ast.DurationKind, dur_tok.literal) orelse
         return self.failAt(dur_tok, "unknown duration '{s}'", .{dur_tok.literal});
@@ -468,7 +517,7 @@ fn parseDuration(self: *Self) !ast.Duration {
         dotted = true;
     }
 
-    return .{ .kind = kind, .dotted = dotted };
+    return .{ .kind = kind, .dotted = dotted, .multiplier = multiplier };
 }
 
 // Positions are written either as `@bar.beat` (e.g. @1.1) or, for dynamics,

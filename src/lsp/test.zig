@@ -105,6 +105,25 @@ test "definition resolves a reference to its source location" {
     try testing.expect(std.mem.indexOf(u8, json, "\"column\":8") != null);
 }
 
+test "completions include arp mode options" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const json = try Lsp.completionsJson(arena.allocator(), "chord");
+    try testing.expect(std.mem.indexOf(u8, json, "\"label\":\"arp\"") != null);
+    try testing.expect(std.mem.indexOf(u8, json, "\"label\":\"up_down\"") != null);
+    try testing.expect(std.mem.indexOf(u8, json, "\"label\":\"bounce\"") != null);
+}
+
+test "hover on a duration with numeric prefix resolves" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    // "2whole" should resolve to the "whole" duration builtin.
+    const json = try Lsp.hoverJson(arena.allocator(), "phrase m =\n  C4.2whole", 2, 7);
+    try testing.expect(std.mem.indexOf(u8, json, "duration") != null);
+}
+
 test "definition on a keyword has no in-source target" {
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();

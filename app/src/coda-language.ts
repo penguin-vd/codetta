@@ -5,11 +5,12 @@ import { EditorView } from "@codemirror/view";
 const STRUCTURE = new Set(["tempo", "time_signature", "chord", "phrase", "section", "song", "track"]);
 const FLOW = new Set([
   "dynamic", "crescendo", "decrescendo", "transpose", "reverse", "augment",
-  "diminish", "rest", "to", "over", "bar", "bars",
+  "diminish", "rest", "to", "over", "bar", "bars", "arp",
 ]);
 const DURATIONS = new Set([
   "whole", "half", "quarter", "eighth", "sixteenth", "thirtysecond", "dotted",
 ]);
+const ARP_MODES = new Set(["up", "down", "up_down", "bounce"]);
 const DYNAMICS = new Set(["ppp", "pp", "p", "mp", "mf", "f", "ff", "fff"]);
 
 const coda = StreamLanguage.define({
@@ -17,13 +18,18 @@ const coda = StreamLanguage.define({
   token(stream) {
     if (stream.eatSpace()) return null;
 
+    if (stream.match(/^--.*$/)) return "lineComment";
+
     if (stream.match(/^@\d+(\.\d+)?/)) return "meta";
     if (stream.match(/^x\d+/)) return "number";
     if (stream.match(/^[A-G][#b]?\d+/)) return "atom";
 
-    if (stream.match(/^\.[a-z]+/)) {
-      const word = stream.current().slice(1);
-      return DURATIONS.has(word) ? "typeName" : "propertyName";
+    if (stream.match(/^\.\d*[a-z_]+/)) {
+      const raw = stream.current().slice(1);
+      const word = raw.replace(/^\d+/, "");
+      if (DURATIONS.has(word)) return "typeName";
+      if (ARP_MODES.has(word)) return "controlKeyword";
+      return "propertyName";
     }
 
     if (stream.match(/^[+-]?\d+(\.\d+)?/)) return "number";
@@ -53,6 +59,7 @@ const highlight = HighlightStyle.define([
   { tag: t.meta, color: "var(--color-gold)", fontStyle: "italic" },
   { tag: t.operator, color: "var(--color-dim)" },
   { tag: t.variableName, color: "var(--color-cream)" },
+  { tag: t.lineComment, color: "var(--color-dim)", fontStyle: "italic" },
 ]);
 
 export const editorTheme = EditorView.theme(
