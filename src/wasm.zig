@@ -10,6 +10,7 @@
 //!   diagnose(ptr, len)       collect diagnostics as JSON; -> always true
 //!   completions(ptr, len)    list completion items as JSON; -> always true
 //!   hover(ptr, len, ln, col) document the symbol at line/col; -> always true
+//!   definition(p, l, ln, col) locate the symbol's definition; -> always true
 //!   resultPtr() -> ptr       start of the last result (JSON, MIDI, or error)
 //!   resultLen() -> len       length of the last result
 //!
@@ -105,6 +106,16 @@ export fn hover(ptr: [*]u8, len: usize, line: u32, column: u32) bool {
     defer src.close();
 
     result = Lsp.hoverJson(src.a, src.bytes, line, column) catch "";
+    return true;
+}
+
+// Locates the definition of the symbol at the 1-based line/column as a JSON
+// `{line, column}`, or an empty result when it has no in-source definition.
+export fn definition(ptr: [*]u8, len: usize, line: u32, column: u32) bool {
+    const src = Source.open(ptr, len);
+    defer src.close();
+
+    result = Lsp.definitionJson(src.a, src.bytes, line, column) catch "";
     return true;
 }
 

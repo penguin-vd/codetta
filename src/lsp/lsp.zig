@@ -79,14 +79,72 @@ pub fn hoverJson(allocator: Allocator, source: []const u8, line: u32, column: u3
         else => {},
     };
 
-    for (keywords) |c| if (std.mem.eql(u8, c.label, word))
-        return hover(allocator, c.label, c.detail);
+    if (builtin(word)) |c| return hover(allocator, c.label, c.detail);
+    if (noteMidi(word)) |midi|
+        return hover(allocator, word, try std.fmt.allocPrint(allocator, "note · MIDI {d}", .{midi}));
+
+    return "";
+}
+
+// The symbol's definition as a JSON `{line, column}`, or empty when it has no
+// in-source definition (a keyword, note, or duration).
+pub fn definitionJson(allocator: Allocator, source: []const u8, line: u32, column: u32) ![]const u8 {
+    const word = wordAt(source, line, column) orelse return "";
+
+    var parser = Parser.init(allocator, source);
+    const lenient = try parser.parseLenient();
+    for (lenient.program.top_level) |index| switch (lenient.program.nodes[index]) {
+        .chord_def => |c| if (std.mem.eql(u8, c.name, word)) return location(allocator, c.line, c.column),
+        .phrase_def => |p| if (std.mem.eql(u8, p.name, word)) return location(allocator, p.line, p.column),
+        .section_def => |s| if (std.mem.eql(u8, s.name, word)) return location(allocator, s.line, s.column),
+        else => {},
+    };
 
     return "";
 }
 
 fn hover(allocator: Allocator, title: []const u8, detail: []const u8) ![]const u8 {
     return std.json.Stringify.valueAlloc(allocator, .{ .title = title, .detail = detail }, .{});
+}
+
+fn location(allocator: Allocator, line: u32, column: u32) ![]const u8 {
+    return std.json.Stringify.valueAlloc(allocator, .{ .line = line, .column = column }, .{});
+}
+
+// The fixed-vocabulary entry for `word`, if any (keyword, duration, or dynamic).
+fn builtin(word: []const u8) ?Candidate {
+    for (keywords) |c| if (std.mem.eql(u8, c.label, word)) return c;
+    for (durations) |c| if (std.mem.eql(u8, c.label, word)) return c;
+    for (dynamics) |c| if (std.mem.eql(u8, c.label, word)) return c;
+    return null;
+}
+
+// The MIDI number of a note literal like C4, F#3, or Bb2 (C4 = 60), or null
+// when `word` isn't a note. Mirrors the lexer's note grammar.
+fn noteMidi(word: []const u8) ?i32 {
+    if (word.len < 2) return null;
+    const semitone: i32 = switch (word[0]) {
+        'C' => 0, 'D' => 2, 'E' => 4, 'F' => 5, 'G' => 7, 'A' => 9, 'B' => 11,
+        else => return null,
+    };
+
+    var i: usize = 1;
+    var accidental: i32 = 0;
+    if (word[i] == '#') {
+        accidental = 1;
+        i += 1;
+    } else if (word[i] == 'b') {
+        accidental = -1;
+        i += 1;
+    }
+    if (i >= word.len) return null;
+
+    var octave: i32 = 0;
+    while (i < word.len) : (i += 1) {
+        if (word[i] < '0' or word[i] > '9') return null;
+        octave = octave * 10 + (word[i] - '0');
+    }
+    return (octave + 1) * 12 + semitone + accidental;
 }
 
 fn heading(allocator: Allocator, kind: []const u8, name: []const u8) ![]const u8 {
@@ -152,6 +210,7 @@ fn wordAt(source: []const u8, line: u32, column: u32) ?[]const u8 {
     return text[start..end];
 }
 
+// `#` so a sharp note like F#3 reads as one word; the lexer treats it the same.
 fn isWord(c: u8) bool {
-    return (c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z') or (c >= '0' and c <= '9') or c == '_';
+    return (c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z') or (c >= '0' and c <= '9') or c == '_' or c == '#';
 }

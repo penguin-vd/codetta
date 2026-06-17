@@ -128,17 +128,26 @@ export function App() {
           <span className="font-serif text-2xl font-semibold text-cream">Codetta</span>
           <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-dim">music, compiled</span>
         </div>
-        <Transport
-          ready={ready}
-          playing={playing}
-          tempo={song?.header.tempo ?? null}
-          signature={song?.header.timeSignature ?? null}
-          noteCount={noteCount}
-          error={error}
-          onPlay={play}
-          onStop={stop}
-          onExport={exportMidi}
-        />
+        <div className="flex items-center gap-3">
+          <Transport
+            ready={ready}
+            playing={playing}
+            tempo={song?.header.tempo ?? null}
+            signature={song?.header.timeSignature ?? null}
+            noteCount={noteCount}
+            error={error}
+            onPlay={play}
+            onStop={stop}
+            onExport={exportMidi}
+          />
+          <a
+            href="#/docs"
+            className="inline-flex items-center gap-2 rounded-md border border-line bg-raise px-4 py-2 font-mono text-xs font-semibold uppercase tracking-wider text-cream transition hover:border-gold/50 hover:text-gold"
+          >
+            <span className="text-[10px]">?</span>
+            Docs
+          </a>
+        </div>
       </header>
 
       <main className="grid min-h-0 grid-cols-[minmax(320px,36%)_1fr]">

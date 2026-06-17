@@ -8,6 +8,7 @@ interface CodettaExports {
   diagnose(ptr: number, len: number): number;
   completions(ptr: number, len: number): number;
   hover(ptr: number, len: number, line: number, column: number): number;
+  definition(ptr: number, len: number, line: number, column: number): number;
   resultPtr(): number;
   resultLen(): number;
 }
@@ -90,6 +91,17 @@ export async function hover(source: string, line: number, column: number): Promi
   const bytes = await call(source, (ex, ptr, len) => ex.hover(ptr, len, line, column));
   if (bytes.length === 0) return null;
   return JSON.parse(new TextDecoder().decode(bytes)) as Hover;
+}
+
+export interface Definition {
+  line: number;
+  column: number;
+}
+
+export async function definition(source: string, line: number, column: number): Promise<Definition | null> {
+  const bytes = await call(source, (ex, ptr, len) => ex.definition(ptr, len, line, column));
+  if (bytes.length === 0) return null;
+  return JSON.parse(new TextDecoder().decode(bytes)) as Definition;
 }
 
 export const preloadWasm = (): Promise<unknown> => load();

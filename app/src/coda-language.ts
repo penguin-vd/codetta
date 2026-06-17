@@ -122,6 +122,14 @@ export const editorTheme = EditorView.theme(
     ".cm-coda-hover": { padding: "6px 9px", fontFamily: "var(--font-mono)", fontSize: "12px" },
     ".cm-coda-hover-title": { fontWeight: "600", color: "var(--color-gold)" },
     ".cm-coda-hover-detail": { color: "var(--color-cream)", marginTop: "3px" },
+    ".cm-coda-hover-link": {
+      display: "inline-block",
+      marginTop: "6px",
+      color: "var(--color-azure)",
+      textDecoration: "none",
+      cursor: "pointer",
+    },
+    ".cm-coda-hover-link:hover": { textDecoration: "underline" },
   },
   { dark: true },
 );

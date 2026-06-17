@@ -4,7 +4,9 @@ import { EditorView, hoverTooltip } from "@codemirror/view";
 import { autocompletion, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
 import { linter, lintGutter, type Diagnostic } from "@codemirror/lint";
 import { codaLanguage, editorTheme } from "../coda-language.ts";
-import { completions, diagnose, hover } from "../wasm.ts";
+import { completions, definition, diagnose, hover } from "../wasm.ts";
+import { docFor } from "../docs.ts";
+import { docsHref } from "../router.ts";
 
 const codaLinter = linter(
   async (view): Promise<Diagnostic[]> => {
@@ -37,8 +39,17 @@ async function codaCompletions(context: CompletionContext): Promise<CompletionRe
 const codaHover = hoverTooltip(async (view, pos) => {
   const doc = view.state.doc;
   const line = doc.lineAt(pos);
-  const info = await hover(doc.toString(), line.number, pos - line.from + 1);
+  const src = doc.toString();
+  const [info, def] = await Promise.all([
+    hover(src, line.number, pos - line.from + 1),
+    definition(src, line.number, pos - line.from + 1),
+  ]);
   if (!info) return null;
+
+  // User references jump to their definition; everything else falls back to docs.
+  const range = view.state.wordAt(pos);
+  const slug = def ? null : docFor(range ? view.state.sliceDoc(range.from, range.to) : "", info.title);
+  const target = def ? doc.line(def.line).from + def.column - 1 : null;
 
   return {
     pos,
@@ -53,9 +64,57 @@ const codaHover = hoverTooltip(async (view, pos) => {
         detail.className = "cm-coda-hover-detail";
         detail.textContent = info.detail;
       }
+      const link = dom.appendChild(document.createElement("a"));
+      link.className = "cm-coda-hover-link";
+      if (target != null) {
+        link.textContent = "Go to definition →";
+        link.href = "#";
+        link.onclick = (e) => {
+          e.preventDefault();
+          view.dispatch({ selection: { anchor: target }, scrollIntoView: true });
+          view.focus();
+        };
+      } else if (slug) {
+        link.textContent = "Open docs →";
+        link.href = docsHref(slug);
+      } else {
+        dom.removeChild(link);
+      }
       return { dom };
     },
   };
+});
+
+// Jump to the symbol's definition, or open its docs when it has none.
+async function goToSymbol(view: EditorView, pos: number) {
+  const doc = view.state.doc;
+  const line = doc.lineAt(pos);
+  const def = await definition(doc.toString(), line.number, pos - line.from + 1);
+  if (def) {
+    const target = doc.line(def.line).from + def.column - 1;
+    view.dispatch({ selection: { anchor: target }, scrollIntoView: true });
+    view.focus();
+    return;
+  }
+  const range = view.state.wordAt(pos);
+  const slug = docFor(range ? view.state.sliceDoc(range.from, range.to) : "");
+  if (slug) window.location.hash = docsHref(slug);
+}
+
+// Ctrl/Cmd-click or middle-click on a symbol acts as go-to-definition.
+const gotoClick = EditorView.domEventHandlers({
+  mousedown(event, view) {
+    const modClick = event.button === 0 && (event.metaKey || event.ctrlKey);
+    const middleClick = event.button === 1;
+    if (!modClick && !middleClick) return false;
+
+    const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+    if (pos == null) return false;
+
+    event.preventDefault();
+    void goToSymbol(view, pos);
+    return true;
+  },
 });
 
 interface Props {
@@ -71,6 +130,7 @@ export function Editor({ value, onChange }: Props) {
       lintGutter(),
       codaLinter,
       codaHover,
+      gotoClick,
       autocompletion({ override: [codaCompletions], icons: false }),
     ],
     [],
