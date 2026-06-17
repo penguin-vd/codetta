@@ -87,6 +87,16 @@ function Overview() {
         follow its <span className="text-cream">Open docs</span> link.
       </p>
 
+      <a
+        href={`${import.meta.env.BASE_URL}LANGUAGE.md`}
+        target="_blank"
+        rel="noopener"
+        className="mt-5 inline-flex items-center gap-2 rounded-md border border-line bg-raise px-4 py-2 font-mono text-xs text-cream transition hover:border-gold/50 hover:text-gold"
+      >
+        Full reference (LANGUAGE.md)
+        <span className="text-[10px]">↗</span>
+      </a>
+
       {DOC_KINDS.map((kind) => (
         <section key={kind} className="mt-9">
           <h2 className="font-mono text-[11px] uppercase tracking-[0.2em] text-dim">{kind}s</h2>
