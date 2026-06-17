@@ -89,9 +89,8 @@ fn printNode(program: ast.Program, index: ast.NodeIndex, indent: usize) void {
             std.debug.print("\n", .{});
         },
 
-        .positioned => |n| {
-            line(indent, "positioned @{d}.{d}", .{ n.position.bar, n.position.beat });
-            printNode(program, n.target, indent + 1);
+        .voice => |n| {
+            line(indent, "voice @{d}.{d}", .{ n.position.bar, n.position.beat });
         },
 
         .dynamic_level => |n| line(indent, "dynamic_level @{d}.{d} {s}", .{ n.position.bar, n.position.beat, @tagName(n.level) }),

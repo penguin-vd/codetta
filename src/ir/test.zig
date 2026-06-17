@@ -538,6 +538,51 @@ test "dynamics swell with arp produces crescendo then diminuendo" {
     }
 }
 
+test "voice cursor reset enables counterpoint" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const result = try lower(arena.allocator(),
+        \\phrase melody =
+        \\  E4.whole E4.quarter
+        \\  @0 C4.quarter C5.whole
+        \\
+        \\section verse =
+        \\  track lead: melody
+        \\
+        \\song =
+        \\  verse
+    );
+
+    // Voice 1: E4.whole at 0, E4.quarter at 1920
+    // Voice 2: @0 resets cursor, C4.quarter at 0, C5.whole at 480
+    try testing.expectEqual(@as(usize, 4), result.notes.len);
+
+    const sorted = try arena.allocator().dupe(score.NoteEvent, result.notes);
+    std.mem.sort(score.NoteEvent, sorted, {}, struct {
+        fn f(_: void, a: score.NoteEvent, b: score.NoteEvent) bool {
+            return if (a.start != b.start) a.start < b.start else a.pitch < b.pitch;
+        }
+    }.f);
+
+    // tick 0: C4 (quarter) and E4 (whole) overlap
+    try testing.expectEqual(@as(u32, 0), sorted[0].start);
+    try testing.expectEqual(@as(u8, 60), sorted[0].pitch); // C4
+    try testing.expectEqual(@as(u32, 480), sorted[0].duration); // quarter
+
+    try testing.expectEqual(@as(u32, 0), sorted[1].start);
+    try testing.expectEqual(@as(u8, 64), sorted[1].pitch); // E4
+    try testing.expectEqual(@as(u32, 1920), sorted[1].duration); // whole
+
+    // tick 480: C5 (whole) from voice 2
+    try testing.expectEqual(@as(u32, 480), sorted[2].start);
+    try testing.expectEqual(@as(u8, 72), sorted[2].pitch); // C5
+
+    // tick 1920: E4 (quarter) from voice 1
+    try testing.expectEqual(@as(u32, 1920), sorted[3].start);
+    try testing.expectEqual(@as(u8, 64), sorted[3].pitch); // E4
+}
+
 test "missing song declaration is reported" {
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();

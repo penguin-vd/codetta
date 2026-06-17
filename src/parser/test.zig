@@ -66,7 +66,7 @@ test "phrase with notes, rest, dotted duration and accidentals" {
     try testing.expectEqual(@as(u8, 5), note4.pitched.octave);
 }
 
-test "phrase with positioned note and dynamics" {
+test "phrase with voice cursor reset and dynamics" {
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();
 
@@ -79,18 +79,18 @@ test "phrase with positioned note and dynamics" {
     );
 
     const phrase = program.nodes[program.top_level[0]].phrase_def;
-    try testing.expectEqual(@as(usize, 4), phrase.body.len);
+    try testing.expectEqual(@as(usize, 5), phrase.body.len);
 
-    const positioned = program.nodes[phrase.body[1]].positioned;
-    try testing.expectEqual(@as(u32, 1), positioned.position.bar);
-    try testing.expectEqual(@as(u32, 1), positioned.position.beat);
-    try testing.expectEqual(ast.DurationKind.whole, program.nodes[positioned.target].note.duration.kind);
+    const voice = program.nodes[phrase.body[1]].voice;
+    try testing.expectEqual(@as(u32, 1), voice.position.bar);
+    try testing.expectEqual(@as(u32, 1), voice.position.beat);
+    try testing.expectEqual(ast.DurationKind.whole, program.nodes[phrase.body[2]].note.duration.kind);
 
-    const level = program.nodes[phrase.body[2]].dynamic_level;
+    const level = program.nodes[phrase.body[3]].dynamic_level;
     try testing.expectEqual(@as(u32, 0), level.position.bar);
     try testing.expectEqual(ast.DynamicLevel.p, level.level);
 
-    const shape = program.nodes[phrase.body[3]].dynamic_shape;
+    const shape = program.nodes[phrase.body[4]].dynamic_shape;
     try testing.expectEqual(@as(u32, 0), shape.position.bar);
     try testing.expectEqual(@as(u32, 3), shape.position.beat);
     try testing.expectEqual(ast.DynamicShapeKind.crescendo, shape.shape);

@@ -285,11 +285,10 @@ fn resolveTransform(self: *Self, target: NodeIndex, op: ast.TransformKind) !Patt
 
 // ---- phrase resolution (relative time + dynamics) ----
 //
-// Phrases are the one place `positioned` (polyphony) and `dynamic_*` can
+// Phrases are the one place `voice` (cursor reset) and `dynamic_*` can
 // appear. Dynamics aren't notes - they're velocity directives for whatever
 // follows - so they're resolved as a separate pass of (tick, velocity)
-// breakpoints, then looked up per note. This keeps resolvePattern's
-// recursion purely about geometry (pitch/timing), not loudness.
+// breakpoints, then looked up per note.
 
 fn resolvePhrasePattern(self: *Self, name: []const u8) LowerError!Pattern {
     if (self.phrase_patterns.get(name)) |cached| return cached;
@@ -323,13 +322,8 @@ fn resolvePhrasePattern(self: *Self, name: []const u8) LowerError!Pattern {
                 });
             },
 
-            // A polyphonic voice: placed at an absolute phrase-relative tick,
-            // independent of (and without disturbing) the running cursor.
-            .positioned => |p| {
-                const at = self.tickForPosition(p.position);
-                const sub = try self.resolvePattern(p.target);
-                try appendShifted(self.allocator, &notes, sub, at);
-                length = @max(length, at + sub.length);
+            .voice => |v| {
+                cursor = self.tickForPosition(v.position);
             },
 
             else => {

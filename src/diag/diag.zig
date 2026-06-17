@@ -143,12 +143,11 @@ const Checker = struct {
         }
     }
 
-    // Phrase bodies only reference chords (bare names lex as chord refs); a
-    // `positioned` element wraps another phrase element.
+    // Phrase bodies only reference chords (bare names lex as chord refs).
     fn phraseElement(self: Checker, index: ast.NodeIndex) !void {
         switch (self.program.nodes[index]) {
             .chord_ref => |n| try self.useChord(n.name, n.line, n.column),
-            .positioned => |n| try self.phraseElement(n.target),
+            .voice => {},
             .transform => |n| try self.phraseElement(n.target),
             .repeat => |n| try self.phraseElement(n.target),
             .sequence => |n| for (n.items) |item| try self.phraseElement(item),

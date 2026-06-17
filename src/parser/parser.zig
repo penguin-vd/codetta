@@ -259,7 +259,7 @@ fn parsePhraseElement(self: *Self) ParseError!?NodeIndex {
         .rest => try self.parseRestElement(),
         .identifier => try self.parseChordRefElement(),
         .lbracket => try self.parseInlineChord(),
-        .at => return try self.parsePositionedElement(),
+        .at => return try self.parseVoice(),
         .dynamic => return try self.parseDynamicElement(),
         else => return null,
     };
@@ -315,15 +315,10 @@ fn parseChordRefElement(self: *Self) !NodeIndex {
     } });
 }
 
-fn parsePositionedElement(self: *Self) ParseError!NodeIndex {
+fn parseVoice(self: *Self) ParseError!NodeIndex {
     _ = try self.expect(.at);
     const position = try self.parsePosition();
-    const target = (try self.parsePhraseElement()) orelse
-        return self.fail("expected a phrase element after position, found {s} '{s}'", .{
-            @tagName(self.cur_token.tokenType), self.cur_token.literal,
-        });
-
-    return self.addNode(.{ .positioned = .{ .position = position, .target = target } });
+    return self.addNode(.{ .voice = .{ .position = position } });
 }
 
 fn parseDynamicElement(self: *Self) !NodeIndex {

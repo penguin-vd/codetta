@@ -74,7 +74,13 @@ pub fn completionsJson(allocator: Allocator, source: []const u8) ![]const u8 {
 }
 
 pub fn hoverJson(allocator: Allocator, source: []const u8, line: u32, column: u32) ![]const u8 {
+    if (charAtCol(source, line, column) == '@')
+        return hover(allocator, "voice", "reset cursor to @bar.beat");
+
     const word = wordAt(source, line, column) orelse return "";
+
+    if (isPositionWord(source, line, word))
+        return hover(allocator, "voice", "reset cursor to @bar.beat");
 
     var parser = Parser.init(allocator, source);
     const lenient = try parser.parseLenient();
@@ -231,4 +237,29 @@ fn wordAt(source: []const u8, line: u32, column: u32) ?[]const u8 {
 // `#` so a sharp note like F#3 reads as one word; the lexer treats it the same.
 fn isWord(c: u8) bool {
     return (c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z') or (c >= '0' and c <= '9') or c == '_' or c == '#';
+}
+
+fn charAtCol(source: []const u8, line: u32, column: u32) u8 {
+    if (line == 0 or column == 0) return 0;
+    var idx: usize = 0;
+    var cur_line: u32 = 1;
+    while (cur_line < line) {
+        if (idx >= source.len) return 0;
+        if (source[idx] == '\n') cur_line += 1;
+        idx += 1;
+    }
+    const col_idx = idx + column - 1;
+    return if (col_idx < source.len) source[col_idx] else 0;
+}
+
+fn isPositionWord(source: []const u8, line: u32, word: []const u8) bool {
+    for (word) |c| {
+        if (c < '0' or c > '9') return false;
+    }
+    const word_ptr = @intFromPtr(word.ptr);
+    const src_ptr = @intFromPtr(source.ptr);
+    if (word_ptr <= src_ptr) return false;
+    const offset = word_ptr - src_ptr;
+    _ = line;
+    return offset > 0 and source[offset - 1] == '@';
 }

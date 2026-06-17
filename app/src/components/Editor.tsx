@@ -71,7 +71,9 @@ const codaHover = hoverTooltip(async (view, pos) => {
 
   // User references jump to their definition; everything else falls back to docs.
   const range = view.state.wordAt(pos);
-  const slug = def ? null : docFor(range ? view.state.sliceDoc(range.from, range.to) : "", info.title);
+  const word = range ? view.state.sliceDoc(range.from, range.to) : "";
+  const charBefore = range && range.from > 0 ? view.state.sliceDoc(range.from - 1, range.from) : "";
+  const slug = def ? null : charBefore === "@" ? "position" : docFor(word, info.title);
   const target = def ? doc.line(def.line).from + def.column - 1 : null;
 
   return {
@@ -120,6 +122,11 @@ async function goToSymbol(view: EditorView, pos: number) {
     return;
   }
   const range = view.state.wordAt(pos);
+  const before = range && range.from > 0 ? doc.sliceString(range.from - 1, range.from) : doc.sliceString(pos, pos + 1);
+  if (before === "@") {
+    window.location.hash = docsHref("position");
+    return;
+  }
   const slug = docFor(range ? view.state.sliceDoc(range.from, range.to) : "");
   if (slug) window.location.hash = docsHref(slug);
 }

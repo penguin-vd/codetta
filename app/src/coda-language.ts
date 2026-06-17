@@ -8,7 +8,7 @@ const FLOW = new Set([
   "diminish", "rest", "to", "over", "bar", "bars", "arp",
 ]);
 const DURATIONS = new Set([
-  "whole", "half", "quarter", "eighth", "sixteenth", "thirtysecond", "dotted",
+  "whole", "half", "quarter", "eighth", "sixteenth", "dot",
 ]);
 const ARP_MODES = new Set(["up", "down", "up_down", "bounce"]);
 const DYNAMICS = new Set(["ppp", "pp", "p", "mp", "mf", "f", "ff", "fff"]);

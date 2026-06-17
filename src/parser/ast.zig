@@ -37,7 +37,7 @@ pub const Node = union(enum) {
     rest: struct { duration: Duration },
     chord_ref: struct { name: []const u8, duration: Duration, line: u32 = 0, column: u32 = 0 }, // Cmaj.half
     inline_chord: struct { notes: []const Pitched, duration: Duration }, // [C4 E4 G4].half
-    positioned: struct { position: Position, target: NodeIndex }, // @1.1 C3.whole
+    voice: struct { position: Position }, // @1.1 — resets cursor to bar.beat
     dynamic_level: struct { position: Position, level: DynamicLevel }, // dynamic @0 p
     dynamic_shape: struct { // dynamic @0.3 crescendo to f over 1 bar
         position: Position,
