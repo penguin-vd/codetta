@@ -1,7 +1,13 @@
 import { useMemo } from "react";
 import CodeMirror from "@uiw/react-codemirror";
-import { EditorView, hoverTooltip } from "@codemirror/view";
-import { autocompletion, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
+import { EditorView, hoverTooltip, keymap } from "@codemirror/view";
+import { indentLess, insertTab } from "@codemirror/commands";
+import {
+  acceptCompletion,
+  autocompletion,
+  type CompletionContext,
+  type CompletionResult,
+} from "@codemirror/autocomplete";
 import { linter, lintGutter, type Diagnostic } from "@codemirror/lint";
 import { codaLanguage, editorTheme } from "../coda-language.ts";
 import { completions, definition, diagnose, hover } from "../wasm.ts";
@@ -132,6 +138,8 @@ export function Editor({ value, onChange }: Props) {
       codaHover,
       gotoClick,
       autocompletion({ override: [codaCompletions], icons: false }),
+      // Tab accepts an open completion, otherwise indents (Shift-Tab dedents).
+      keymap.of([{ key: "Tab", run: (v) => acceptCompletion(v) || insertTab(v), shift: indentLess }]),
     ],
     [],
   );
@@ -150,6 +158,8 @@ export function Editor({ value, onChange }: Props) {
         bracketMatching: true,
         indentOnInput: false,
       }}
+      // Off so our own Tab binding (accept completion, else indent) wins.
+      indentWithTab={false}
       height="100%"
       style={{ height: "100%" }}
     />
