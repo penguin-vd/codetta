@@ -34,6 +34,10 @@ pub fn collect(allocator: Allocator, source: []const u8) ![]const Diagnostic {
     return list.toOwnedSlice(allocator);
 }
 
+pub fn toJson(allocator: Allocator, source: []const u8) ![]const u8 {
+    return writeJson(allocator, try collect(allocator, source));
+}
+
 fn runRules(allocator: Allocator, program: ast.Program, had_syntax_errors: bool, list: *std.ArrayList(Diagnostic)) !void {
     var chords: NameSet = .empty;
     var phrases: NameSet = .empty;
@@ -169,33 +173,21 @@ fn lessByPosition(_: void, a: Diagnostic, b: Diagnostic) bool {
     return a.column < b.column;
 }
 
-pub fn writeJson(allocator: Allocator, diagnostics: []const Diagnostic) ![]u8 {
-    var out: std.ArrayList(u8) = .empty;
-    try out.append(allocator, '[');
-    for (diagnostics, 0..) |d, i| {
-        if (i != 0) try out.append(allocator, ',');
-        const head = try std.fmt.allocPrint(allocator, "{{\"severity\":\"{s}\",\"line\":{d},\"column\":{d},\"message\":", .{
-            if (d.severity == .err) "error" else "warning",
-            d.line,
-            d.column,
-        });
-        try out.appendSlice(allocator, head);
-        try appendJsonString(&out, allocator, d.message);
-        try out.append(allocator, '}');
-    }
-    try out.append(allocator, ']');
-    return out.toOwnedSlice(allocator);
-}
+// The wire shape: the `severity` enum becomes a tidy "error"/"warning" string.
+const DiagnosticJson = struct {
+    severity: []const u8,
+    line: u32,
+    column: u32,
+    message: []const u8,
+};
 
-fn appendJsonString(out: *std.ArrayList(u8), allocator: Allocator, value: []const u8) !void {
-    try out.append(allocator, '"');
-    for (value) |c| switch (c) {
-        '"' => try out.appendSlice(allocator, "\\\""),
-        '\\' => try out.appendSlice(allocator, "\\\\"),
-        '\n' => try out.appendSlice(allocator, "\\n"),
-        '\t' => try out.appendSlice(allocator, "\\t"),
-        '\r' => try out.appendSlice(allocator, "\\r"),
-        else => try out.append(allocator, c),
+pub fn writeJson(allocator: Allocator, diagnostics: []const Diagnostic) ![]u8 {
+    const items = try allocator.alloc(DiagnosticJson, diagnostics.len);
+    for (diagnostics, items) |d, *out| out.* = .{
+        .severity = if (d.severity == .err) "error" else "warning",
+        .line = d.line,
+        .column = d.column,
+        .message = d.message,
     };
-    try out.append(allocator, '"');
+    return std.json.Stringify.valueAlloc(allocator, items, .{});
 }

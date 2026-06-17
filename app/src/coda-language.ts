@@ -104,6 +104,24 @@ export const editorTheme = EditorView.theme(
     },
     ".cm-diagnostic": { padding: "5px 9px" },
     ".cm-diagnostic-error": { borderLeftColor: "var(--color-coral)" },
+    ".cm-tooltip-autocomplete > ul": {
+      fontFamily: "var(--font-mono)",
+      fontSize: "12px",
+      maxHeight: "16em",
+    },
+    ".cm-tooltip-autocomplete > ul > li": { padding: "3px 9px" },
+    ".cm-tooltip-autocomplete > ul > li[aria-selected]": {
+      backgroundColor: "color-mix(in srgb, var(--color-gold) 18%, transparent)",
+      color: "var(--color-cream)",
+    },
+    ".cm-completionDetail": {
+      color: "var(--color-dim)",
+      fontStyle: "italic",
+      marginLeft: "1.5em",
+    },
+    ".cm-coda-hover": { padding: "6px 9px", fontFamily: "var(--font-mono)", fontSize: "12px" },
+    ".cm-coda-hover-title": { fontWeight: "600", color: "var(--color-gold)" },
+    ".cm-coda-hover-detail": { color: "var(--color-cream)", marginTop: "3px" },
   },
   { dark: true },
 );

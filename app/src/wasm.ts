@@ -6,6 +6,8 @@ interface CodettaExports {
   compileJson(ptr: number, len: number): number;
   compileMidi(ptr: number, len: number): number;
   diagnose(ptr: number, len: number): number;
+  completions(ptr: number, len: number): number;
+  hover(ptr: number, len: number, line: number, column: number): number;
   resultPtr(): number;
   resultLen(): number;
 }
@@ -25,17 +27,26 @@ function load(): Promise<CodettaExports> {
   return exportsPromise;
 }
 
-async function run(name: "compileJson" | "compileMidi" | "diagnose", source: string): Promise<Uint8Array> {
+// Copies `source` into WASM memory, runs `invoke`, and copies the result back
+// out before the next call can overwrite it. A falsy return means the result
+// holds an error message rather than output.
+async function call(
+  source: string,
+  invoke: (ex: CodettaExports, ptr: number, len: number) => number,
+): Promise<Uint8Array> {
   const ex = await load();
   const bytes = new TextEncoder().encode(source);
   const ptr = ex.alloc(bytes.length);
   new Uint8Array(ex.memory.buffer, ptr, bytes.length).set(bytes);
 
-  const ok = ex[name](ptr, bytes.length);
+  const ok = invoke(ex, ptr, bytes.length);
   const out = new Uint8Array(ex.memory.buffer, ex.resultPtr(), ex.resultLen()).slice();
   if (!ok) throw new CompileError(new TextDecoder().decode(out));
   return out;
 }
+
+const run = (name: "compileJson" | "compileMidi" | "diagnose", source: string): Promise<Uint8Array> =>
+  call(source, (ex, ptr, len) => ex[name](ptr, len));
 
 export async function compileSong(source: string): Promise<Song> {
   return JSON.parse(new TextDecoder().decode(await run("compileJson", source))) as Song;
@@ -57,6 +68,28 @@ export interface Diag {
 export async function diagnose(source: string): Promise<Diag[]> {
   const bytes = await run("diagnose", source);
   return JSON.parse(new TextDecoder().decode(bytes)) as Diag[];
+}
+
+export interface Completion {
+  label: string;
+  detail: string;
+  type: string; // CodeMirror's Completion.type
+}
+
+export async function completions(source: string): Promise<Completion[]> {
+  const bytes = await call(source, (ex, ptr, len) => ex.completions(ptr, len));
+  return JSON.parse(new TextDecoder().decode(bytes)) as Completion[];
+}
+
+export interface Hover {
+  title: string;
+  detail: string;
+}
+
+export async function hover(source: string, line: number, column: number): Promise<Hover | null> {
+  const bytes = await call(source, (ex, ptr, len) => ex.hover(ptr, len, line, column));
+  if (bytes.length === 0) return null;
+  return JSON.parse(new TextDecoder().decode(bytes)) as Hover;
 }
 
 export const preloadWasm = (): Promise<unknown> => load();

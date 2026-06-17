@@ -54,8 +54,18 @@ test "notes are grouped by track with normalized velocity" {
     try testing.expectEqual(@as(i64, 60), first.get("midi").?.integer);
     try testing.expectEqual(@as(i64, 0), first.get("ticks").?.integer);
     try testing.expectEqual(@as(i64, 480), first.get("durationTicks").?.integer);
-    try testing.expectApproxEqAbs(@as(f64, 1.0), first.get("velocity").?.float, 0.001);
+    // A full-velocity note normalizes to exactly 1.0, which JSON renders as the
+    // bare integer `1`; accept either numeric form.
+    try testing.expectApproxEqAbs(@as(f64, 1.0), asFloat(first.get("velocity").?), 0.001);
 
     const bass_notes = tracks.items[1].object.get("notes").?.array;
     try testing.expectEqual(@as(usize, 1), bass_notes.items.len);
+}
+
+fn asFloat(value: std.json.Value) f64 {
+    return switch (value) {
+        .float => |f| f,
+        .integer => |i| @floatFromInt(i),
+        else => unreachable,
+    };
 }

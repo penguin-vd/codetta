@@ -16,49 +16,37 @@ const Score = ir.Score;
 // Notes carry absolute `ticks`; the client converts to seconds using
 // `ppq` and `tempo`, so a varying tempo stays a client-side concern.
 
+// The wire shapes. Field names and order are the JSON contract, so std.json
+// serializes these structs straight into the document above.
+const Note = struct { midi: u8, ticks: u32, durationTicks: u32, velocity: f64 };
+const Track = struct { name: []const u8, notes: []const Note };
+const Header = struct { tempo: u32, ppq: u32, timeSignature: [2]u32 };
+const Document = struct { header: Header, tracks: []const Track };
+
 pub fn write(allocator: Allocator, s: Score) ![]u8 {
-    var out: std.ArrayList(u8) = .empty;
-
-    try print(&out, allocator,
-        \\{{"header":{{"tempo":{d},"ppq":{d},"timeSignature":[{d},{d}]}},"tracks":[
-    , .{ s.tempo_bpm, s.ticks_per_quarter, s.time_signature.numerator, s.time_signature.denominator });
-
+    const tracks = try allocator.alloc(Track, s.tracks.len);
     for (s.tracks, 0..) |track, track_id| {
-        if (track_id != 0) try out.append(allocator, ',');
-        try out.appendSlice(allocator, "{\"name\":");
-        try appendJsonString(&out, allocator, track.name);
-        try out.appendSlice(allocator, ",\"notes\":[");
-
-        var first = true;
+        var notes: std.ArrayList(Note) = .empty;
         for (s.notes) |n| {
             if (n.track != track_id) continue;
-            if (!first) try out.append(allocator, ',');
-            first = false;
-            try print(&out, allocator,
-                \\{{"midi":{d},"ticks":{d},"durationTicks":{d},"velocity":{d:.3}}}
-            , .{ n.pitch, n.start, n.duration, @as(f64, @floatFromInt(n.velocity)) / 127.0 });
+            try notes.append(allocator, .{
+                .midi = n.pitch,
+                .ticks = n.start,
+                .durationTicks = n.duration,
+                .velocity = @as(f64, @floatFromInt(n.velocity)) / 127.0,
+            });
         }
-        try out.appendSlice(allocator, "]}");
+        tracks[track_id] = .{ .name = track.name, .notes = try notes.toOwnedSlice(allocator) };
     }
 
-    try out.appendSlice(allocator, "]}");
-    return out.toOwnedSlice(allocator);
-}
-
-fn print(out: *std.ArrayList(u8), allocator: Allocator, comptime fmt: []const u8, args: anytype) !void {
-    const chunk = try std.fmt.allocPrint(allocator, fmt, args);
-    try out.appendSlice(allocator, chunk);
-}
-
-fn appendJsonString(out: *std.ArrayList(u8), allocator: Allocator, value: []const u8) !void {
-    try out.append(allocator, '"');
-    for (value) |c| switch (c) {
-        '"' => try out.appendSlice(allocator, "\\\""),
-        '\\' => try out.appendSlice(allocator, "\\\\"),
-        '\n' => try out.appendSlice(allocator, "\\n"),
-        '\t' => try out.appendSlice(allocator, "\\t"),
-        '\r' => try out.appendSlice(allocator, "\\r"),
-        else => try out.append(allocator, c),
+    const doc: Document = .{
+        .header = .{
+            .tempo = s.tempo_bpm,
+            .ppq = s.ticks_per_quarter,
+            .timeSignature = .{ s.time_signature.numerator, s.time_signature.denominator },
+        },
+        .tracks = tracks,
     };
-    try out.append(allocator, '"');
+
+    return std.json.Stringify.valueAlloc(allocator, doc, .{});
 }
