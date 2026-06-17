@@ -110,4 +110,81 @@ export class Engine {
     this.parts = [];
     this.synths = [];
   }
+
+  async renderWav(song: Song, instrumentIds: string[], audible: boolean[]): Promise<Blob> {
+    const duration = songSeconds(song) + 0.5;
+    const spt = secondsPerTick(song);
+
+    const buffer = await Tone.Offline(({ transport }) => {
+      transport.bpm.value = song.header.tempo;
+      const reverb = new Tone.Reverb({ decay: 2.4, wet: 0.18 }).toDestination();
+
+      song.tracks.forEach((track, i) => {
+        if (!audible[i]) return;
+        const preset = BY_ID.get(instrumentIds[i]) ?? INSTRUMENTS[0];
+        const synth = preset.make().connect(reverb);
+
+        const events = track.notes.map((n) => ({
+          time: n.ticks * spt,
+          note: Tone.Frequency(n.midi, "midi").toNote(),
+          dur: Math.max(n.durationTicks * spt, 0.03),
+          vel: n.velocity,
+        }));
+        const part = new Tone.Part((time, ev) => {
+          synth.triggerAttackRelease(ev.note, ev.dur, time, ev.vel);
+        }, events);
+        part.start(0);
+      });
+
+      transport.start();
+    }, duration);
+
+    return encodeWav(buffer);
+  }
+}
+
+function encodeWav(buffer: Tone.ToneAudioBuffer): Blob {
+  const numChannels = buffer.numberOfChannels;
+  const sampleRate = buffer.sampleRate;
+  const length = buffer.length;
+  const bytesPerSample = 2; // 16-bit
+  const blockAlign = numChannels * bytesPerSample;
+  const dataSize = length * blockAlign;
+  const fileSize = 44 + dataSize;
+
+  const out = new ArrayBuffer(fileSize);
+  const view = new DataView(out);
+
+  const writeStr = (offset: number, str: string) => {
+    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+  };
+
+  writeStr(0, "RIFF");
+  view.setUint32(4, fileSize - 8, true);
+  writeStr(8, "WAVE");
+  writeStr(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); // PCM
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * blockAlign, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, 16, true); // bits per sample
+
+  writeStr(36, "data");
+  view.setUint32(40, dataSize, true);
+
+  const channels: Float32Array[] = [];
+  for (let ch = 0; ch < numChannels; ch++) channels.push(buffer.getChannelData(ch));
+
+  let offset = 44;
+  for (let i = 0; i < length; i++) {
+    for (let ch = 0; ch < numChannels; ch++) {
+      const sample = Math.max(-1, Math.min(1, channels[ch][i]));
+      view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+      offset += 2;
+    }
+  }
+
+  return new Blob([out], { type: "audio/wav" });
 }

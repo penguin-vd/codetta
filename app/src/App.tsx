@@ -101,6 +101,8 @@ export function App() {
     setPlaying(false);
   }
 
+  const [exporting, setExporting] = useState(false);
+
   async function exportMidi() {
     try {
       const bytes = await compileMidi(source);
@@ -112,6 +114,25 @@ export function App() {
       URL.revokeObjectURL(url);
     } catch {
       /* surfaced by the live compile */
+    }
+  }
+
+  async function exportWav() {
+    if (!song || exporting) return;
+    setExporting(true);
+    try {
+      const ids = song.tracks.map((t) => instruments[t.name] ?? defaultInstrument(t.name));
+      const blob = await engine.renderWav(song, ids, audible);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "song.wav";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      /* surfaced by the live compile */
+    } finally {
+      setExporting(false);
     }
   }
 
@@ -136,9 +157,11 @@ export function App() {
             signature={song?.header.timeSignature ?? null}
             noteCount={noteCount}
             error={error}
+            exporting={exporting}
             onPlay={play}
             onStop={stop}
-            onExport={exportMidi}
+            onExportMidi={exportMidi}
+            onExportWav={exportWav}
           />
           <a
             href="#/docs"

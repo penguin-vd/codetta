@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from "react";
+
 interface Props {
   ready: boolean;
   playing: boolean;
@@ -5,13 +7,26 @@ interface Props {
   signature: [number, number] | null;
   noteCount: number;
   error: string | null;
+  exporting: boolean;
   onPlay: () => void;
   onStop: () => void;
-  onExport: () => void;
+  onExportMidi: () => void;
+  onExportWav: () => void;
 }
 
-export function Transport({ ready, playing, tempo, signature, noteCount, error, onPlay, onStop, onExport }: Props) {
+export function Transport({ ready, playing, tempo, signature, noteCount, error, exporting, onPlay, onStop, onExportMidi, onExportWav }: Props) {
   const disabled = !ready || noteCount === 0;
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [open]);
 
   return (
     <div className="flex items-center gap-6">
@@ -43,14 +58,32 @@ export function Transport({ ready, playing, tempo, signature, noteCount, error, 
           <span className="text-[10px]">{playing ? "■" : "▶"}</span>
           {playing ? "Stop" : "Play"}
         </button>
-        <button
-          onClick={onExport}
-          disabled={disabled}
-          className="inline-flex items-center gap-2 rounded-md border border-line bg-raise px-4 py-2 font-mono text-xs font-semibold uppercase tracking-wider text-cream transition hover:border-gold/50 hover:text-gold disabled:opacity-40"
-        >
-          <span className="text-[10px]">⤓</span>
-          MIDI
-        </button>
+        <div ref={menuRef} className="relative">
+          <button
+            onClick={() => setOpen((o) => !o)}
+            disabled={disabled || exporting}
+            className="inline-flex items-center gap-2 rounded-md border border-line bg-raise px-4 py-2 font-mono text-xs font-semibold uppercase tracking-wider text-cream transition hover:border-gold/50 hover:text-gold disabled:opacity-40"
+          >
+            <span className="text-[10px]">⤓</span>
+            {exporting ? "Exporting…" : "Export"}
+          </button>
+          {open && (
+            <div className="absolute right-0 top-full z-10 mt-1 min-w-[140px] rounded-md border border-line bg-panel shadow-lg">
+              <button
+                onClick={() => { setOpen(false); onExportMidi(); }}
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-left font-mono text-xs uppercase tracking-wider text-cream transition hover:bg-raise"
+              >
+                MIDI
+              </button>
+              <button
+                onClick={() => { setOpen(false); onExportWav(); }}
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-left font-mono text-xs uppercase tracking-wider text-cream transition hover:bg-raise"
+              >
+                WAV
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
