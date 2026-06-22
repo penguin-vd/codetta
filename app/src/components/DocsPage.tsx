@@ -86,46 +86,185 @@ function Sidebar({ activeSlug }: { activeSlug: string | null }) {
 function Overview() {
     return (
         <div className="mx-auto max-w-2xl px-10 py-10">
-            <h1 className="font-serif text-3xl font-semibold text-cream">Language reference</h1>
+            <h1 className="font-serif text-3xl font-semibold text-cream">
+                The Codetta Language
+            </h1>
             <p className="mt-3 leading-relaxed text-dim">
-                Codetta is a small language for writing music as code. Define chords and phrases,
-                arrange them into sections and a song, then play or export to MIDI. Pick a topic, or
-                hover a keyword in the editor and follow its{' '}
-                <span className="text-cream">Open docs</span> link.
+                Codetta is a small declarative language for writing music as code. You define
+                reusable chords and phrases, arrange them into sections of parallel tracks, and
+                lay those sections out in a song. The result compiles to timed note events for
+                browser playback or MIDI export.
             </p>
 
-            <a
-                href={`${import.meta.env.BASE_URL}LANGUAGE.md`}
-                target="_blank"
-                rel="noopener"
-                className="mt-5 inline-flex items-center gap-2 rounded-md border border-line bg-raise px-4 py-2 font-mono text-xs text-cream transition hover:border-gold/50 hover:text-gold"
-            >
-                Full reference (LANGUAGE.md)
-                <span className="text-[10px]">↗</span>
-            </a>
+            <Section title="Program structure">
+                <P>
+                    A score is a flat list of declarations — settings, chords, phrases, sections,
+                    and a <Link slug="song">song</Link>. Order doesn't matter; all names are
+                    collected before references are resolved.
+                </P>
+                <Pre>{`tempo 120
+time_signature 4/4
 
-            {DOC_KINDS.map((kind) => (
-                <section key={kind} className="mt-9">
-                    <h2 className="font-mono text-[11px] uppercase tracking-[0.2em] text-dim">
-                        {kind}s
-                    </h2>
-                    <div className="mt-3 grid gap-2">
-                        {DOCS.filter((d) => d.kind === kind).map((d) => (
-                            <a
-                                key={d.slug}
-                                href={docsHref(d.slug)}
-                                className="group rounded-lg border border-line bg-panel px-4 py-3 transition hover:border-gold/40"
-                            >
-                                <div className="font-mono text-sm text-cream group-hover:text-gold">
-                                    {d.title}
-                                </div>
-                                <div className="mt-0.5 text-sm text-dim">{d.summary}</div>
-                            </a>
-                        ))}
-                    </div>
-                </section>
-            ))}
+chord Cmaj = [C4 E4 G4]
+
+phrase melody =
+  C4.quarter E4.quarter G4.half
+
+section verse =
+  track lead: melody
+
+song =
+  verse`}</Pre>
+            </Section>
+
+            <Section title="Notes and durations">
+                <P>
+                    A <Link slug="note">note</Link> is a pitch letter (A–G), an optional
+                    accidental (<Kw>#</Kw> or <Kw>b</Kw>), and an octave number — <Kw>C4</Kw> is
+                    middle C. Attach a <Link slug="duration">duration</Link> with a dot.
+                </P>
+                <Pre>{`C4.quarter   F#3.eighth   Bb4.half`}</Pre>
+                <P>
+                    Durations are fractions of a bar: <Kw>whole</Kw>, <Kw>half</Kw>,{' '}
+                    <Kw>quarter</Kw>, <Kw>eighth</Kw>, <Kw>sixteenth</Kw>. Add <Kw>.dot</Kw> to
+                    extend by half, or prefix with a number to multiply:{' '}
+                    <Kw>.2whole</Kw> spans two bars. A <Link slug="rest">rest</Link> is silence
+                    for a duration: <Kw>rest.quarter</Kw>.
+                </P>
+            </Section>
+
+            <Section title="Chords">
+                <P>
+                    A <Link slug="chord">chord</Link> names a stack of notes. Reference it by
+                    name with a duration to play all notes simultaneously. You can also write
+                    inline chords directly with brackets.
+                </P>
+                <Pre>{`chord Cmaj = [C4 E4 G4]
+
+-- as a reference:
+Cmaj.whole
+
+-- or inline (no definition needed):
+[C4 E4 G4].whole`}</Pre>
+            </Section>
+
+            <Section title="Phrases">
+                <P>
+                    A <Link slug="phrase">phrase</Link> is a reusable line of music — notes,
+                    rests, chords, and dynamics laid out in time. Elements are placed one after
+                    another along a running cursor.
+                </P>
+                <Pre>{`phrase melody =
+  C4.quarter E4.quarter G4.quarter rest.quarter
+  D4.half C4.half`}</Pre>
+                <P>
+                    Use a <Link slug="position">voice marker</Link> (<Kw>@bar.beat</Kw>) to
+                    reset the cursor and start a second voice for counterpoint.{' '}
+                    <Link slug="dynamic">Dynamics</Link> set loudness within a phrase.
+                </P>
+                <Pre>{`phrase counterpoint =
+  E4.whole E4.whole
+  @0 C3.whole G3.whole         -- a lower voice
+
+  dynamic @0 p
+  dynamic @0.3 crescendo to f over 1 bar`}</Pre>
+            </Section>
+
+            <Section title="Sections and tracks">
+                <P>
+                    A <Link slug="section">section</Link> groups parallel{' '}
+                    <Link slug="track">tracks</Link> that play together. Each track is one voice
+                    — a phrase reference, chords, notes, or a sequence of them.
+                </P>
+                <Pre>{`section verse =
+  track melody:  melody
+  track counter: melody transpose +2 reverse
+  track bass:    bassline`}</Pre>
+            </Section>
+
+            <Section title="Transforms">
+                <P>
+                    Transforms modify phrases and chords on a track. Chain them left to right.
+                </P>
+                <div className="mt-3 grid grid-cols-[auto_1fr] gap-x-5 gap-y-1.5 rounded-lg border border-line bg-panel px-4 py-3 text-[13px]">
+                    <Kw>transpose ±n</Kw>
+                    <span className="text-dim">shift pitch by semitones</span>
+                    <Kw>reverse</Kw>
+                    <span className="text-dim">play backwards</span>
+                    <Kw>augment xN</Kw>
+                    <span className="text-dim">stretch durations (slower)</span>
+                    <Kw>diminish xN</Kw>
+                    <span className="text-dim">compress durations (faster)</span>
+                    <Kw>arp[.mode] [xN]</Kw>
+                    <span className="text-dim">
+                        arpeggiate — <Link slug="arp">up</Link>, down, up_down, bounce
+                    </span>
+                </div>
+                <Pre>{`melody transpose +5 augment x2
+Cmaj.2whole arp.bounce x2`}</Pre>
+            </Section>
+
+            <Section title="Song">
+                <P>
+                    The <Link slug="song">song</Link> block arranges sections in play order.
+                    Repeat with <Kw>* N</Kw>. Without a song block there is nothing to play.
+                </P>
+                <Pre>{`song =
+  intro
+  verse * 2
+  chorus
+  verse
+  chorus * 2`}</Pre>
+            </Section>
+
+            <div className="mt-10 flex items-center gap-4 border-t border-line pt-6">
+                <a
+                    href={`${import.meta.env.BASE_URL}LANGUAGE.md`}
+                    target="_blank"
+                    rel="noopener"
+                    className="inline-flex items-center gap-2 rounded-md border border-line bg-raise px-4 py-2 font-mono text-xs text-cream transition hover:border-gold/50 hover:text-gold"
+                >
+                    Full reference (LANGUAGE.md)
+                    <span className="text-[10px]">↗</span>
+                </a>
+                <span className="text-sm text-dim">
+                    or pick a topic in the sidebar
+                </span>
+            </div>
         </div>
+    );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+    return (
+        <section className="mt-9">
+            <h2 className="font-serif text-xl font-semibold text-cream">{title}</h2>
+            <div className="mt-3">{children}</div>
+        </section>
+    );
+}
+
+function P({ children }: { children: React.ReactNode }) {
+    return <p className="mt-3 leading-relaxed text-dim first:mt-0">{children}</p>;
+}
+
+function Kw({ children }: { children: React.ReactNode }) {
+    return <code className="font-mono text-sage">{children}</code>;
+}
+
+function Link({ slug, children }: { slug: string; children: React.ReactNode }) {
+    return (
+        <a href={docsHref(slug)} className="text-cream underline decoration-line underline-offset-2 transition hover:text-gold hover:decoration-gold/50">
+            {children}
+        </a>
+    );
+}
+
+function Pre({ children }: { children: string }) {
+    return (
+        <pre className="mt-3 overflow-x-auto rounded-lg border border-line bg-panel px-4 py-3 font-mono text-[13px] leading-relaxed text-sage">
+            {children}
+        </pre>
     );
 }
 
