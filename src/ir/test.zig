@@ -583,6 +583,67 @@ test "voice cursor reset enables counterpoint" {
     try testing.expectEqual(@as(u8, 64), sorted[3].pitch); // E4
 }
 
+test "triplet shortens duration to 2/3" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const result = try lower(arena.allocator(),
+        \\phrase melody = C4.quarter.t D4.quarter.t E4.quarter.t
+        \\
+        \\section verse =
+        \\  track lead: melody
+        \\
+        \\song =
+        \\  verse
+    );
+
+    try testing.expectEqual(@as(usize, 3), result.notes.len);
+    // quarter = 480 ticks, triplet = 480 * 2 / 3 = 320
+    for (result.notes) |n| try testing.expectEqual(@as(u32, 320), n.duration);
+    // three triplet quarters span 960 ticks (= two regular quarters)
+    try testing.expectEqual(@as(u32, 0), result.notes[0].start);
+    try testing.expectEqual(@as(u32, 320), result.notes[1].start);
+    try testing.expectEqual(@as(u32, 640), result.notes[2].start);
+}
+
+test "dotted triplet composes both modifiers" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const result = try lower(arena.allocator(),
+        \\phrase melody = C4.quarter.dot.t
+        \\
+        \\section verse =
+        \\  track lead: melody
+        \\
+        \\song =
+        \\  verse
+    );
+
+    try testing.expectEqual(@as(usize, 1), result.notes.len);
+    // quarter = 480, dotted = 720, triplet = 720 * 2 / 3 = 480
+    try testing.expectEqual(@as(u32, 480), result.notes[0].duration);
+}
+
+test "triplet rest advances time correctly" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const result = try lower(arena.allocator(),
+        \\phrase melody = rest.quarter.t C4.quarter
+        \\
+        \\section verse =
+        \\  track lead: melody
+        \\
+        \\song =
+        \\  verse
+    );
+
+    try testing.expectEqual(@as(usize, 1), result.notes.len);
+    // rest is 320 ticks (triplet quarter), so C4 starts at 320
+    try testing.expectEqual(@as(u32, 320), result.notes[0].start);
+}
+
 test "staccato halves note duration" {
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();

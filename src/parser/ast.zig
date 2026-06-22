@@ -5,7 +5,7 @@ pub const NodeIndex = u32;
 pub const Pitch = enum { c, d, e, f, g, a, b };
 pub const Accidental = enum { natural, sharp, flat };
 pub const DurationKind = enum { whole, half, quarter, eighth, sixteenth };
-pub const Duration = struct { kind: DurationKind, dotted: bool, multiplier: u32 = 1 };
+pub const Duration = struct { kind: DurationKind, dotted: bool, triplet: bool = false, multiplier: u32 = 1 };
 pub const DynamicLevel = enum { ppp, pp, p, mp, mf, f, ff, fff };
 pub const DynamicShapeKind = enum { crescendo, diminuendo };
 pub const Position = struct { bar: u32, beat: u32 };

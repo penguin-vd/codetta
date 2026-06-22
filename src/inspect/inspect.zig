@@ -173,4 +173,5 @@ fn printDuration(d: ast.Duration) void {
     if (d.multiplier > 1) std.debug.print("{d}", .{d.multiplier});
     std.debug.print("{s}", .{@tagName(d.kind)});
     if (d.dotted) std.debug.print(".dot", .{});
+    if (d.triplet) std.debug.print(".t", .{});
 }

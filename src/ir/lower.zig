@@ -449,6 +449,7 @@ fn ticksFor(self: *Self, duration: ast.Duration) u32 {
 
     var ticks = self.barTicks() * duration.multiplier / divisor;
     if (duration.dotted) ticks += ticks / 2;
+    if (duration.triplet) ticks = ticks * 2 / 3;
     return ticks;
 }
 

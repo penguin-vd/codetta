@@ -33,7 +33,7 @@ const FLOW = new Set([
     'staccato',
     'legato',
 ]);
-const DURATIONS = new Set(['whole', 'half', 'quarter', 'eighth', 'sixteenth', 'dot']);
+const DURATIONS = new Set(['whole', 'half', 'quarter', 'eighth', 'sixteenth', 'dot', 't']);
 const ARP_MODES = new Set(['up', 'down', 'up_down', 'bounce']);
 const DYNAMICS = new Set(['ppp', 'pp', 'p', 'mp', 'mf', 'f', 'ff', 'fff']);
 

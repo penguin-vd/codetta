@@ -520,7 +520,16 @@ fn parseDuration(self: *Self) !ast.Duration {
         dotted = true;
     }
 
-    return .{ .kind = kind, .dotted = dotted, .multiplier = multiplier };
+    var triplet = false;
+    if (self.cur_token.tokenType == .dot and std.mem.eql(u8, self.cur_token.literal, ".") and
+        self.peek_token.tokenType == .identifier and std.mem.eql(u8, self.peek_token.literal, "t"))
+    {
+        self.advance();
+        self.advance();
+        triplet = true;
+    }
+
+    return .{ .kind = kind, .dotted = dotted, .triplet = triplet, .multiplier = multiplier };
 }
 
 // Positions are written either as `@bar.beat` (e.g. @1.1) or, for dynamics,

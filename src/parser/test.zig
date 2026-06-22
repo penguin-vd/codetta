@@ -166,6 +166,29 @@ test "song with repetition" {
     try testing.expectEqualStrings("chorus", program.nodes[song.items[2]].identifier.name);
 }
 
+test "triplet duration with .t suffix" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const program = try parse(arena.allocator(), "phrase melody =\n  C4.quarter.t rest.eighth.t D4.half.dot.t");
+
+    const phrase = program.nodes[program.top_level[0]].phrase_def;
+    try testing.expectEqual(@as(usize, 3), phrase.body.len);
+
+    const note1 = program.nodes[phrase.body[0]].note;
+    try testing.expectEqual(ast.DurationKind.quarter, note1.duration.kind);
+    try testing.expectEqual(true, note1.duration.triplet);
+    try testing.expectEqual(false, note1.duration.dotted);
+
+    const rest = program.nodes[phrase.body[1]].rest;
+    try testing.expectEqual(ast.DurationKind.eighth, rest.duration.kind);
+    try testing.expectEqual(true, rest.duration.triplet);
+
+    const note2 = program.nodes[phrase.body[2]].note;
+    try testing.expectEqual(true, note2.duration.dotted);
+    try testing.expectEqual(true, note2.duration.triplet);
+}
+
 test "staccato and legato transforms on phrase elements" {
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();
