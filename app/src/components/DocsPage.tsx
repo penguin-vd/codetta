@@ -1,6 +1,8 @@
+import { ArrowLeft } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { DOC_KINDS, DOCS, type DocEntry, docBySlug } from '../docs.ts';
 import { docsHref } from '../router.ts';
+import { Header } from './Header.tsx';
 
 interface Props {
     slug: string | null;
@@ -23,21 +25,18 @@ export function DocsPage({ slug }: Props) {
 
     return (
         <div className="fixed inset-0 z-50 grid grid-rows-[auto_1fr] bg-bg text-cream">
-            <header className="flex items-center justify-between border-b border-line px-6 py-3">
-                <div className="flex items-baseline gap-3">
-                    <span className="font-serif text-2xl font-semibold text-cream">Codetta</span>
-                    <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-dim">
-                        language reference
-                    </span>
-                </div>
-                <a
-                    href="#/"
-                    className="inline-flex items-center gap-2 rounded-md border border-line bg-raise px-4 py-2 font-mono text-xs font-semibold uppercase tracking-wider text-cream transition hover:border-gold/50 hover:text-gold"
-                >
-                    <span className="text-[10px]">←</span>
-                    Editor
-                </a>
-            </header>
+            <Header
+                subtitle="language reference"
+                actions={
+                    <a
+                        href="#/"
+                        className="inline-flex items-center gap-2 rounded-md border border-line bg-raise px-4 py-2 font-mono text-xs font-semibold uppercase tracking-wider text-cream transition hover:border-gold/50 hover:text-gold"
+                    >
+                        <ArrowLeft size={14} />
+                        Editor
+                    </a>
+                }
+            />
 
             <div className="grid min-h-0 grid-cols-[240px_1fr]">
                 <Sidebar activeSlug={entry?.slug ?? null} />

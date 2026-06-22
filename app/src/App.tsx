@@ -1,6 +1,8 @@
+import { BookOpen } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { defaultInstrument, Engine } from './audio.ts';
 import { Editor } from './components/Editor.tsx';
+import { Header } from './components/Header.tsx';
 import { PianoRoll } from './components/PianoRoll.tsx';
 import { TrackRail } from './components/TrackRail.tsx';
 import { Transport } from './components/Transport.tsx';
@@ -25,14 +27,14 @@ song =
   loop * 4
 `;
 
-function getInitialTheme(): boolean {
-    const stored = localStorage.getItem('codetta-theme');
-    if (stored) return stored === 'dark';
-    return true;
+const STORAGE_KEY = 'codetta-source';
+
+function getInitialSource(): string {
+    return localStorage.getItem(STORAGE_KEY) ?? SAMPLE;
 }
 
 export function App() {
-    const [source, setSource] = useState(SAMPLE);
+    const [source, setSource] = useState(getInitialSource);
     const [song, setSong] = useState<Song | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [ready, setReady] = useState(false);
@@ -40,12 +42,11 @@ export function App() {
     const [instruments, setInstruments] = useState<Record<string, string>>({});
     const [muted, setMuted] = useState<Set<string>>(new Set());
     const [soloed, setSoloed] = useState<Set<string>>(new Set());
-    const [dark, setDark] = useState(getInitialTheme);
 
     useEffect(() => {
-        document.documentElement.classList.toggle('light', !dark);
-        localStorage.setItem('codetta-theme', dark ? 'dark' : 'light');
-    }, [dark]);
+        const id = setTimeout(() => localStorage.setItem(STORAGE_KEY, source), 400);
+        return () => clearTimeout(id);
+    }, [source]);
 
     const engineRef = useRef<Engine | null>(null);
     if (!engineRef.current) engineRef.current = new Engine();
@@ -162,64 +163,41 @@ export function App() {
 
     return (
         <div className="grid h-screen grid-rows-[auto_1fr]">
-            <header className="flex items-center justify-between border-b border-line px-6 py-3">
-                <div className="flex items-baseline gap-3">
-                    <span className="font-serif text-2xl font-semibold text-cream">Codetta</span>
-                    <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-dim">
-                        music, compiled
-                    </span>
-                </div>
-                <div className="flex items-center gap-3">
-                    <Transport
-                        ready={ready}
-                        playing={playing}
-                        tempo={song?.header.tempo ?? null}
-                        signature={song?.header.timeSignature ?? null}
-                        noteCount={noteCount}
-                        error={error}
-                        exporting={exporting}
-                        onPlay={play}
-                        onStop={stop}
-                        onExportMidi={exportMidi}
-                        onExportWav={exportWav}
-                    />
-                    <button
-                        type="button"
-                        onClick={() => setDark((d) => !d)}
-                        className="grid h-9 w-9 place-items-center rounded-md border border-line bg-raise text-sm text-dim transition hover:border-gold/50 hover:text-gold"
-                        title={dark ? 'Switch to light mode' : 'Switch to dark mode'}
-                    >
-                        {dark ? '☀' : '☾'}
-                    </button>
-                    <a
-                        href="#/docs"
-                        className="inline-flex items-center gap-2 rounded-md border border-line bg-raise px-4 py-2 font-mono text-xs font-semibold uppercase tracking-wider text-cream transition hover:border-gold/50 hover:text-gold"
-                    >
-                        <span className="text-[10px]">?</span>
-                        Docs
-                    </a>
-                </div>
-            </header>
+            <Header
+                subtitle="music, compiled"
+                actions={
+                    <>
+                        <Transport
+                            ready={ready}
+                            playing={playing}
+                            tempo={song?.header.tempo ?? null}
+                            signature={song?.header.timeSignature ?? null}
+                            noteCount={noteCount}
+                            error={error}
+                            exporting={exporting}
+                            onPlay={play}
+                            onStop={stop}
+                            onExportMidi={exportMidi}
+                            onExportWav={exportWav}
+                        />
+                        <a
+                            href="#/docs"
+                            className="inline-flex items-center gap-2 rounded-md border border-line bg-raise px-4 py-2 font-mono text-xs font-semibold uppercase tracking-wider text-cream transition hover:border-gold/50 hover:text-gold"
+                        >
+                            <BookOpen size={14} />
+                            Docs
+                        </a>
+                    </>
+                }
+            />
 
             <main className="grid min-h-0 grid-cols-[minmax(320px,36%)_1fr]">
-                <section className="flex min-h-0 flex-col border-r border-line">
-                    <div className="flex items-center gap-2 border-b border-line px-5 py-2.5 font-mono text-[11px] text-dim">
-                        <span className="h-[7px] w-[7px] rounded-full bg-gold" />
-                        score.coda
-                    </div>
-                    <div className="min-h-0 flex-1 overflow-hidden">
-                        <Editor value={source} onChange={setSource} dark={dark} />
-                    </div>
+                <section className="min-h-0 overflow-hidden border-r border-line">
+                    <Editor value={source} onChange={setSource} />
                 </section>
 
                 <section className="grid min-h-0 grid-rows-[1fr_auto]">
-                    <PianoRoll
-                        song={song}
-                        engine={engine}
-                        playing={playing}
-                        audible={audible}
-                        dark={dark}
-                    />
+                    <PianoRoll song={song} engine={engine} playing={playing} audible={audible} />
                     {song && song.tracks.length > 0 && (
                         <TrackRail
                             tracks={song.tracks}

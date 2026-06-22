@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Engine } from '../audio.ts';
 import { secondsPerTick } from '../audio.ts';
 import { trackColor } from '../palette.ts';
+import { useTheme } from '../ThemeContext.tsx';
 import type { Song } from '../types.ts';
 
 const GUTTER = 46;
@@ -14,7 +15,6 @@ interface Props {
     engine: Engine;
     playing: boolean;
     audible: boolean[];
-    dark: boolean;
 }
 
 const noteName = (midi: number) =>
@@ -60,7 +60,8 @@ const LIGHT_CANVAS = {
     playhead: '#c48a2a',
 };
 
-export function PianoRoll({ song, engine, playing, audible, dark }: Props) {
+export function PianoRoll({ song, engine, playing, audible }: Props) {
+    const { dark } = useTheme();
     const wrapRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const rafRef = useRef(0);

@@ -12,6 +12,7 @@ import { useMemo } from 'react';
 import { codaLanguage, createEditorTheme } from '../coda-language.ts';
 import { docFor } from '../docs.ts';
 import { docsHref } from '../router.ts';
+import { useTheme } from '../ThemeContext.tsx';
 import { completions, definition, diagnose, hover } from '../wasm.ts';
 
 const codaLinter = linter(
@@ -156,10 +157,10 @@ const gotoClick = EditorView.domEventHandlers({
 interface Props {
     value: string;
     onChange: (value: string) => void;
-    dark: boolean;
 }
 
-export function Editor({ value, onChange, dark }: Props) {
+export function Editor({ value, onChange }: Props) {
+    const { dark } = useTheme();
     const theme = useMemo(() => createEditorTheme(dark), [dark]);
 
     const extensions = useMemo(

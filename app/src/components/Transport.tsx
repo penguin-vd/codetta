@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { Menu } from '@base-ui/react/menu';
+import { ChevronDown, Download, Play, Square } from 'lucide-react';
 
 interface Props {
     ready: boolean;
@@ -28,17 +29,6 @@ export function Transport({
     onExportWav,
 }: Props) {
     const disabled = !ready || noteCount === 0;
-    const [open, setOpen] = useState(false);
-    const menuRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        if (!open) return;
-        const close = (e: MouseEvent) => {
-            if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpen(false);
-        };
-        document.addEventListener('mousedown', close);
-        return () => document.removeEventListener('mousedown', close);
-    }, [open]);
 
     return (
         <div className="flex items-center gap-6">
@@ -68,44 +58,41 @@ export function Transport({
                     disabled={disabled}
                     className="inline-flex items-center gap-2 rounded-md bg-gold px-4 py-2 font-mono text-xs font-semibold uppercase tracking-wider text-[#2a1c06] transition hover:brightness-105 disabled:opacity-40 disabled:hover:brightness-100"
                 >
-                    <span className="text-[10px]">{playing ? '■' : '▶'}</span>
+                    {playing ? (
+                        <Square size={12} fill="currentColor" />
+                    ) : (
+                        <Play size={12} fill="currentColor" />
+                    )}
                     {playing ? 'Stop' : 'Play'}
                 </button>
-                <div ref={menuRef} className="relative">
-                    <button
-                        type="button"
-                        onClick={() => setOpen((o) => !o)}
+                <Menu.Root>
+                    <Menu.Trigger
                         disabled={disabled || exporting}
                         className="inline-flex items-center gap-2 rounded-md border border-line bg-raise px-4 py-2 font-mono text-xs font-semibold uppercase tracking-wider text-cream transition hover:border-gold/50 hover:text-gold disabled:opacity-40"
                     >
-                        <span className="text-[10px]">⤓</span>
+                        <Download size={14} />
                         {exporting ? 'Exporting…' : 'Export'}
-                    </button>
-                    {open && (
-                        <div className="absolute right-0 top-full z-10 mt-1 min-w-[140px] rounded-md border border-line bg-panel shadow-lg">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setOpen(false);
-                                    onExportMidi();
-                                }}
-                                className="flex w-full items-center gap-2 px-4 py-2.5 text-left font-mono text-xs uppercase tracking-wider text-cream transition hover:bg-raise"
-                            >
-                                MIDI
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setOpen(false);
-                                    onExportWav();
-                                }}
-                                className="flex w-full items-center gap-2 px-4 py-2.5 text-left font-mono text-xs uppercase tracking-wider text-cream transition hover:bg-raise"
-                            >
-                                WAV
-                            </button>
-                        </div>
-                    )}
-                </div>
+                        <ChevronDown size={12} />
+                    </Menu.Trigger>
+                    <Menu.Portal>
+                        <Menu.Positioner side="bottom" align="end" sideOffset={4}>
+                            <Menu.Popup className="min-w-[140px] rounded-md border border-line bg-panel shadow-lg">
+                                <Menu.Item
+                                    className="flex w-full items-center gap-2 px-4 py-2.5 text-left font-mono text-xs uppercase tracking-wider text-cream transition hover:bg-raise data-[highlighted]:bg-raise"
+                                    onSelect={onExportMidi}
+                                >
+                                    MIDI
+                                </Menu.Item>
+                                <Menu.Item
+                                    className="flex w-full items-center gap-2 px-4 py-2.5 text-left font-mono text-xs uppercase tracking-wider text-cream transition hover:bg-raise data-[highlighted]:bg-raise"
+                                    onSelect={onExportWav}
+                                >
+                                    WAV
+                                </Menu.Item>
+                            </Menu.Popup>
+                        </Menu.Positioner>
+                    </Menu.Portal>
+                </Menu.Root>
             </div>
         </div>
     );

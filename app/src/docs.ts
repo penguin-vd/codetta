@@ -274,7 +274,6 @@ export const DOC_KINDS: DocKind[] = ['Setting', 'Definition', 'Primitive', 'Tran
 
 const bySlug = new Map(DOCS.map((d) => [d.slug, d]));
 
-// word/alias -> slug, so a hovered keyword resolves to the entry that documents it.
 const byWord = new Map<string, string>();
 for (const d of DOCS) {
     byWord.set(d.slug, d.slug);
@@ -283,8 +282,6 @@ for (const d of DOCS) {
 
 export const docBySlug = (slug: string): DocEntry | undefined => bySlug.get(slug);
 
-// Resolves a symbol to a docs slug: the word itself, or the leading keyword of
-// a definition's title (e.g. "chord" from "chord Cmaj").
 export function docFor(word: string, title?: string): string | null {
     if (byWord.has(word)) return byWord.get(word)!;
     const head = title?.split(' ', 1)[0];
