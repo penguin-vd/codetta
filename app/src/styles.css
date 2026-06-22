@@ -20,6 +20,22 @@
   --font-sans: "Hanken Grotesk", system-ui, sans-serif;
 }
 
+html.light {
+  --color-bg: #f5f1eb;
+  --color-panel: #ebe6dd;
+  --color-raise: #e0dbd2;
+  --color-line: #d0c9bd;
+  --color-cream: #2a2520;
+  --color-dim: #7a7268;
+
+  --color-gold: #c48a2a;
+  --color-mint: #3d9488;
+  --color-coral: #c4606e;
+  --color-iris: #7b6cb8;
+  --color-azure: #4d8bbe;
+  --color-sage: #6d8c4a;
+}
+
 html,
 body,
 #root {
@@ -54,4 +70,16 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #3a342b;
+}
+
+html.light ::-webkit-scrollbar-thumb {
+  border-color: var(--color-bg);
+}
+html.light ::-webkit-scrollbar-thumb:hover {
+  background: #b8b0a3;
+}
+
+html.light select option {
+  background: var(--color-panel);
+  color: var(--color-cream);
 }

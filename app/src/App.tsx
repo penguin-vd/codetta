@@ -25,6 +25,12 @@ song =
   loop * 4
 `;
 
+function getInitialTheme(): boolean {
+  const stored = localStorage.getItem("codetta-theme");
+  if (stored) return stored === "dark";
+  return true;
+}
+
 export function App() {
   const [source, setSource] = useState(SAMPLE);
   const [song, setSong] = useState<Song | null>(null);
@@ -34,6 +40,12 @@ export function App() {
   const [instruments, setInstruments] = useState<Record<string, string>>({});
   const [muted, setMuted] = useState<Set<string>>(new Set());
   const [soloed, setSoloed] = useState<Set<string>>(new Set());
+  const [dark, setDark] = useState(getInitialTheme);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("light", !dark);
+    localStorage.setItem("codetta-theme", dark ? "dark" : "light");
+  }, [dark]);
 
   const engineRef = useRef<Engine | null>(null);
   if (!engineRef.current) engineRef.current = new Engine();
@@ -163,6 +175,13 @@ export function App() {
             onExportMidi={exportMidi}
             onExportWav={exportWav}
           />
+          <button
+            onClick={() => setDark((d) => !d)}
+            className="grid h-9 w-9 place-items-center rounded-md border border-line bg-raise text-sm text-dim transition hover:border-gold/50 hover:text-gold"
+            title={dark ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {dark ? "☀" : "☾"}
+          </button>
           <a
             href="#/docs"
             className="inline-flex items-center gap-2 rounded-md border border-line bg-raise px-4 py-2 font-mono text-xs font-semibold uppercase tracking-wider text-cream transition hover:border-gold/50 hover:text-gold"
@@ -180,12 +199,12 @@ export function App() {
             score.coda
           </div>
           <div className="min-h-0 flex-1 overflow-hidden">
-            <Editor value={source} onChange={setSource} />
+            <Editor value={source} onChange={setSource} dark={dark} />
           </div>
         </section>
 
         <section className="grid min-h-0 grid-rows-[1fr_auto]">
-          <PianoRoll song={song} engine={engine} playing={playing} audible={audible} />
+          <PianoRoll song={song} engine={engine} playing={playing} audible={audible} dark={dark} />
           {song && song.tracks.length > 0 && (
             <TrackRail
               tracks={song.tracks}

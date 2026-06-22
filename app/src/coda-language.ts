@@ -62,7 +62,7 @@ const highlight = HighlightStyle.define([
   { tag: t.lineComment, color: "var(--color-dim)", fontStyle: "italic" },
 ]);
 
-export const editorTheme = EditorView.theme(
+export const createEditorTheme = (dark: boolean) => EditorView.theme(
   {
     "&": { backgroundColor: "transparent", color: "var(--color-cream)", height: "100%" },
     ".cm-content": {
@@ -138,7 +138,7 @@ export const editorTheme = EditorView.theme(
     },
     ".cm-coda-hover-link:hover": { textDecoration: "underline" },
   },
-  { dark: true },
+  { dark },
 );
 
 export function codaLanguage(): LanguageSupport {

@@ -14,6 +14,7 @@ interface Props {
   engine: Engine;
   playing: boolean;
   audible: boolean[];
+  dark: boolean;
 }
 
 const noteName = (midi: number) =>
@@ -33,7 +34,33 @@ const velLabel = (v: number): string => {
   return "fff";
 };
 
-export function PianoRoll({ song, engine, playing, audible }: Props) {
+const DARK_CANVAS = {
+  bg: "#100e0b",
+  blackKey: "rgba(0,0,0,0.2)",
+  octaveLine: "rgba(236,229,216,0.07)",
+  barLine: "rgba(236,229,216,0.12)",
+  beatLine: "rgba(236,229,216,0.04)",
+  textDim: "rgba(151,143,129,0.55)",
+  textFaint: "rgba(151,143,129,0.5)",
+  textMed: "rgba(151,143,129,0.6)",
+  border: "rgba(44,39,32,1)",
+  playhead: "#e0a13c",
+};
+
+const LIGHT_CANVAS = {
+  bg: "#f5f1eb",
+  blackKey: "rgba(0,0,0,0.06)",
+  octaveLine: "rgba(42,37,32,0.1)",
+  barLine: "rgba(42,37,32,0.16)",
+  beatLine: "rgba(42,37,32,0.06)",
+  textDim: "rgba(122,114,104,0.7)",
+  textFaint: "rgba(122,114,104,0.5)",
+  textMed: "rgba(122,114,104,0.8)",
+  border: "rgba(208,201,189,1)",
+  playhead: "#c48a2a",
+};
+
+export function PianoRoll({ song, engine, playing, audible, dark }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef(0);
@@ -52,6 +79,7 @@ export function PianoRoll({ song, engine, playing, audible }: Props) {
       const canvas = canvasRef.current;
       const wrap = wrapRef.current;
       if (!canvas || !wrap) return;
+      const c = dark ? DARK_CANVAS : LIGHT_CANVAS;
 
       const dpr = window.devicePixelRatio || 1;
       const w = wrap.clientWidth;
@@ -74,7 +102,7 @@ export function PianoRoll({ song, engine, playing, audible }: Props) {
         }
       }
       if (totalTicks === 0) {
-        ctx.fillStyle = "rgba(151,143,129,0.5)";
+        ctx.fillStyle = c.textFaint;
         ctx.font = "italic 15px var(--font-serif), serif";
         ctx.fillText("an empty score", GUTTER + 16, RULER + 30);
         return;
@@ -105,11 +133,11 @@ export function PianoRoll({ song, engine, playing, audible }: Props) {
 
       for (let midi = lo; midi <= hi; midi++) {
         if (BLACK_KEYS.has(((midi % 12) + 12) % 12)) {
-          ctx.fillStyle = "rgba(0,0,0,0.2)";
+          ctx.fillStyle = c.blackKey;
           ctx.fillRect(GUTTER, yOf(midi), plotW, rowH);
         }
         if (midi % 12 === 0) {
-          ctx.strokeStyle = "rgba(236,229,216,0.07)";
+          ctx.strokeStyle = c.octaveLine;
           ctx.beginPath();
           ctx.moveTo(GUTTER, yOf(midi) + rowH);
           ctx.lineTo(w, yOf(midi) + rowH);
@@ -121,7 +149,7 @@ export function PianoRoll({ song, engine, playing, audible }: Props) {
         const x = xOf(tick);
         if (x < GUTTER || x > w) continue;
         const isBar = Math.round(tick) % Math.round(ticksPerBar) === 0;
-        ctx.strokeStyle = isBar ? "rgba(236,229,216,0.12)" : "rgba(236,229,216,0.04)";
+        ctx.strokeStyle = isBar ? c.barLine : c.beatLine;
         ctx.beginPath();
         ctx.moveTo(x, RULER);
         ctx.lineTo(x, h);
@@ -147,7 +175,7 @@ export function PianoRoll({ song, engine, playing, audible }: Props) {
 
       if (playheadSec != null) {
         const x = xOf(playheadSec / secondsPerTick(song));
-        ctx.strokeStyle = "#e0a13c";
+        ctx.strokeStyle = c.playhead;
         ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.moveTo(x, RULER);
@@ -157,9 +185,9 @@ export function PianoRoll({ song, engine, playing, audible }: Props) {
       ctx.restore();
 
       // Top ruler with bar numbers.
-      ctx.fillStyle = "#100e0b";
+      ctx.fillStyle = c.bg;
       ctx.fillRect(0, 0, w, RULER);
-      ctx.fillStyle = "rgba(151,143,129,0.55)";
+      ctx.fillStyle = c.textDim;
       ctx.font = "10px var(--font-mono), monospace";
       let bar = 0;
       for (let tick = 0; tick <= totalTicks + 1; tick += ticksPerBar) {
@@ -170,14 +198,14 @@ export function PianoRoll({ song, engine, playing, audible }: Props) {
       }
 
       // Left gutter with octave labels.
-      ctx.fillStyle = "#100e0b";
+      ctx.fillStyle = c.bg;
       ctx.fillRect(0, 0, GUTTER, h);
-      ctx.fillStyle = "rgba(151,143,129,0.6)";
+      ctx.fillStyle = c.textMed;
       for (let midi = lo; midi <= hi; midi++) {
         if (midi % 12 === 0) ctx.fillText(noteName(midi), 9, yOf(midi) + rowH - 3);
       }
 
-      ctx.strokeStyle = "rgba(44,39,32,1)";
+      ctx.strokeStyle = c.border;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(GUTTER, 0);
@@ -186,7 +214,7 @@ export function PianoRoll({ song, engine, playing, audible }: Props) {
       ctx.lineTo(w, RULER);
       ctx.stroke();
     },
-    [song, audible],
+    [song, audible, dark],
   );
 
   const redraw = useCallback(() => {
@@ -311,7 +339,7 @@ export function PianoRoll({ song, engine, playing, audible }: Props) {
   };
 
   return (
-    <div className="relative min-h-0 overflow-hidden">
+    <div className="group relative h-full min-h-0 overflow-hidden">
       <div
         ref={wrapRef}
         className="h-full cursor-grab active:cursor-grabbing"
@@ -331,7 +359,7 @@ export function PianoRoll({ song, engine, playing, audible }: Props) {
         </div>
       )}
       {song && (
-        <div className="absolute right-3 top-3 flex items-center gap-1 rounded-lg border border-line bg-panel/80 px-1 py-1 backdrop-blur">
+        <div className="absolute right-3 top-3 flex items-center gap-1 rounded-lg border border-line bg-panel/80 px-1 py-1 opacity-0 backdrop-blur transition-opacity duration-200 group-hover:opacity-100">
           <ZoomBtn label="−" onClick={() => nudge(1 / 1.4)} disabled={zoom <= 1.001} />
           <span className="w-10 text-center font-mono text-[10px] text-dim tabular-nums">{Math.round(zoom * 100)}%</span>
           <ZoomBtn label="+" onClick={() => nudge(1.4)} disabled={zoom >= MAX_ZOOM - 0.001} />

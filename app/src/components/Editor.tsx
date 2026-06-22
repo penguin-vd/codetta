@@ -9,7 +9,7 @@ import {
   type CompletionResult,
 } from "@codemirror/autocomplete";
 import { linter, lintGutter, type Diagnostic } from "@codemirror/lint";
-import { codaLanguage, editorTheme } from "../coda-language.ts";
+import { codaLanguage, createEditorTheme } from "../coda-language.ts";
 import { completions, definition, diagnose, hover } from "../wasm.ts";
 import { docFor } from "../docs.ts";
 import { docsHref } from "../router.ts";
@@ -150,9 +150,12 @@ const gotoClick = EditorView.domEventHandlers({
 interface Props {
   value: string;
   onChange: (value: string) => void;
+  dark: boolean;
 }
 
-export function Editor({ value, onChange }: Props) {
+export function Editor({ value, onChange, dark }: Props) {
+  const theme = useMemo(() => createEditorTheme(dark), [dark]);
+
   const extensions = useMemo(
     () => [
       codaLanguage(),
@@ -172,7 +175,7 @@ export function Editor({ value, onChange }: Props) {
     <CodeMirror
       value={value}
       onChange={onChange}
-      theme={editorTheme}
+      theme={theme}
       extensions={extensions}
       basicSetup={{
         highlightActiveLine: true,
