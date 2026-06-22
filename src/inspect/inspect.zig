@@ -124,6 +124,7 @@ fn printNode(program: ast.Program, index: ast.NodeIndex, indent: usize) void {
                     if (a.cycles > 1) std.debug.print(" x{d}", .{a.cycles});
                     std.debug.print("\n", .{});
                 },
+                .articulation => |a| std.debug.print("{s}\n", .{@tagName(a)}),
             }
             printNode(program, n.target, indent + 1);
         },

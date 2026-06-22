@@ -13,12 +13,15 @@ pub const Pitched = struct { pitch: Pitch, accidental: Accidental, octave: u8 };
 
 pub const ArpMode = enum { up, down, up_down, bounce };
 
+pub const Articulation = enum { staccato, legato };
+
 pub const TransformKind = union(enum) {
     transpose: i32, // +5 / -5
     reverse,
     augment: u32, // xN
     diminish: u32, // xN
     arp: struct { mode: ArpMode, cycles: u32 = 1 },
+    articulation: Articulation,
 };
 
 pub const Node = union(enum) {

@@ -30,6 +30,8 @@ const FLOW = new Set([
     'bar',
     'bars',
     'arp',
+    'staccato',
+    'legato',
 ]);
 const DURATIONS = new Set(['whole', 'half', 'quarter', 'eighth', 'sixteenth', 'dot']);
 const ARP_MODES = new Set(['up', 'down', 'up_down', 'bounce']);

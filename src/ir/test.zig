@@ -583,6 +583,62 @@ test "voice cursor reset enables counterpoint" {
     try testing.expectEqual(@as(u8, 64), sorted[3].pitch); // E4
 }
 
+test "staccato halves note duration" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const result = try lower(arena.allocator(),
+        \\phrase melody = C4.quarter
+        \\
+        \\section verse =
+        \\  track lead: melody staccato
+        \\
+        \\song =
+        \\  verse
+    );
+
+    try testing.expectEqual(@as(usize, 1), result.notes.len);
+    try testing.expectEqual(@as(u32, 240), result.notes[0].duration); // 480 / 2
+}
+
+test "legato extends note duration by 10%" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const result = try lower(arena.allocator(),
+        \\phrase melody = C4.quarter
+        \\
+        \\section verse =
+        \\  track lead: melody legato
+        \\
+        \\song =
+        \\  verse
+    );
+
+    try testing.expectEqual(@as(usize, 1), result.notes.len);
+    // 480 + 480/10 = 480 + 48 = 528
+    try testing.expectEqual(@as(u32, 528), result.notes[0].duration);
+}
+
+test "staccato with arp shortens arpeggiated notes" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const result = try lower(arena.allocator(),
+        \\chord Cmaj = [C4 E4 G4]
+        \\
+        \\section verse =
+        \\  track keys: Cmaj.whole arp.up staccato
+        \\
+        \\song =
+        \\  verse
+    );
+
+    try testing.expectEqual(@as(usize, 3), result.notes.len);
+    // arp splits whole (1920) into 3 notes of 640 ticks; staccato halves to 320
+    for (result.notes) |n| try testing.expectEqual(@as(u32, 320), n.duration);
+}
+
 test "missing song declaration is reported" {
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();

@@ -21,6 +21,8 @@ const keywords = [_]Candidate{
     .{ .label = "augment", .detail = "stretch durations by xN", .type = "keyword" },
     .{ .label = "diminish", .detail = "compress durations by xN", .type = "keyword" },
     .{ .label = "arp", .detail = "arpeggiate (default: up)", .type = "keyword" },
+    .{ .label = "staccato", .detail = "shorten notes to half duration", .type = "keyword" },
+    .{ .label = "legato", .detail = "sustain notes for smooth connection", .type = "keyword" },
     .{ .label = "crescendo", .detail = "grow louder toward a level", .type = "keyword" },
     .{ .label = "diminuendo", .detail = "fade quieter toward a level", .type = "keyword" },
     .{ .label = "to", .detail = "target level of a dynamic shape", .type = "keyword" },

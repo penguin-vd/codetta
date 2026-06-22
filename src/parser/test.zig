@@ -166,6 +166,68 @@ test "song with repetition" {
     try testing.expectEqualStrings("chorus", program.nodes[song.items[2]].identifier.name);
 }
 
+test "staccato and legato transforms on phrase elements" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const program = try parse(arena.allocator(),
+        \\phrase funky =
+        \\  C3.quarter staccato
+        \\  D3.eighth legato
+    );
+
+    const phrase = program.nodes[program.top_level[0]].phrase_def;
+    try testing.expectEqual(@as(usize, 2), phrase.body.len);
+
+    const staccato = program.nodes[phrase.body[0]].transform;
+    try testing.expectEqual(ast.TransformKind{ .articulation = .staccato }, staccato.op);
+    _ = program.nodes[staccato.target].note;
+
+    const legato = program.nodes[phrase.body[1]].transform;
+    try testing.expectEqual(ast.TransformKind{ .articulation = .legato }, legato.op);
+    _ = program.nodes[legato.target].note;
+}
+
+test "staccato and legato on track content" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const program = try parse(arena.allocator(),
+        \\section verse =
+        \\  track synth: melody staccato
+        \\  track strings: melody legato
+    );
+
+    const section = program.nodes[program.top_level[0]].section_def;
+
+    const synth = program.nodes[section.tracks[0]].track;
+    const s = program.nodes[synth.content].transform;
+    try testing.expectEqual(ast.TransformKind{ .articulation = .staccato }, s.op);
+
+    const strings = program.nodes[section.tracks[1]].track;
+    const l = program.nodes[strings.content].transform;
+    try testing.expectEqual(ast.TransformKind{ .articulation = .legato }, l.op);
+}
+
+test "staccato chains with arp" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const program = try parse(arena.allocator(),
+        \\section verse =
+        \\  track keys: Cmaj.whole arp.up staccato
+    );
+
+    const section = program.nodes[program.top_level[0]].section_def;
+    const track = program.nodes[section.tracks[0]].track;
+
+    const staccato = program.nodes[track.content].transform;
+    try testing.expectEqual(ast.TransformKind{ .articulation = .staccato }, staccato.op);
+
+    const arp = program.nodes[staccato.target].transform;
+    try testing.expectEqual(ast.ArpMode.up, arp.op.arp.mode);
+}
+
 fn expectSyntaxError(allocator: std.mem.Allocator, input: []const u8, line: u32, column: u32, message: []const u8) !void {
     var parser = Parser.init(allocator, input);
     try testing.expectError(error.SyntaxError, parser.parseProgram());

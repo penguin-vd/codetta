@@ -253,6 +253,12 @@ fn resolveTransform(self: *Self, target: NodeIndex, op: ast.TransformKind) !Patt
                 n.duration /= safe_factor;
             }
         },
+        .articulation => |art| for (notes) |*n| {
+            n.duration = switch (art) {
+                .staccato => n.duration / 2,
+                .legato => n.duration +| (n.duration / 10),
+            };
+        },
         .arp => |a| {
             if (notes.len > 0) {
                 std.mem.sort(RelativeNote, notes, {}, lessByPitch);

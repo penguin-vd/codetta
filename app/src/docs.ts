@@ -95,7 +95,7 @@ export const DOCS: DocEntry[] = [
         example:
             'track bass: bassline transpose -5 reverse\ntrack keys: [C4 E4 G4].whole arp.bounce x2',
         body: [
-            'Track content is a phrase reference, chord refs, inline chords ([C4 E4].whole), notes, or a sequence of them, with optional transforms (transpose, reverse, augment, diminish, arp) and repeats (* N).',
+            'Track content is a phrase reference, chord refs, inline chords ([C4 E4].whole), notes, or a sequence of them, with optional transforms (transpose, reverse, augment, diminish, arp, staccato, legato) and repeats (* N).',
             'The track name becomes the voice shown in the player and MIDI export.',
         ],
         see: ['section', 'transpose', 'reverse', 'repeat', 'arp', 'chord'],
@@ -253,6 +253,32 @@ export const DOCS: DocEntry[] = [
         example: 'melody diminish x2',
         body: ['Divides every duration, speeding the line up — the inverse of augment.'],
         see: ['augment', 'duration'],
+    },
+    {
+        slug: 'staccato',
+        title: 'staccato',
+        kind: 'Transform',
+        summary: 'Shortens notes to half their written duration.',
+        syntax: '<target> staccato',
+        example: 'C4.quarter staccato\nmelody staccato\nCmaj.whole arp.up staccato',
+        body: [
+            'Makes notes crisp and detached by halving their sounding duration. The rhythmic placement stays the same — only the sustain is shortened.',
+            'Applies to notes, chords, phrases, and arpeggios. Chain it with other transforms freely.',
+        ],
+        see: ['legato', 'arp', 'transpose'],
+    },
+    {
+        slug: 'legato',
+        title: 'legato',
+        kind: 'Transform',
+        summary: 'Extends notes for a smooth, connected sound.',
+        syntax: '<target> legato',
+        example: 'C4.quarter legato\nmelody legato\nCmaj.whole arp.down legato',
+        body: [
+            'Stretches each note slightly beyond its written duration so it overlaps with the next, creating a flowing, connected feel.',
+            'Applies to notes, chords, phrases, and arpeggios. Pairs well with arp for smooth arpeggiated lines.',
+        ],
+        see: ['staccato', 'arp', 'transpose'],
     },
     {
         slug: 'arp',

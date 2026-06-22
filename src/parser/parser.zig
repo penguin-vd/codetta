@@ -483,6 +483,14 @@ fn tryParseTransform(self: *Self) !?ast.TransformKind {
         self.advance();
         return .{ .diminish = try self.parseMultiplier() };
     }
+    if (std.mem.eql(u8, name, "staccato")) {
+        self.advance();
+        return .{ .articulation = .staccato };
+    }
+    if (std.mem.eql(u8, name, "legato")) {
+        self.advance();
+        return .{ .articulation = .legato };
+    }
     return null;
 }
 
