@@ -43,6 +43,7 @@ tempo_bpm: u32 = 120,
 numerator: u32 = 4,
 denominator: u32 = 4,
 song_index: ?NodeIndex = null,
+rng: std.Random.DefaultPrng = std.Random.DefaultPrng.init(0),
 
 chord_defs: std.StringHashMapUnmanaged([]const ast.Pitched) = .empty,
 phrase_defs: std.StringHashMapUnmanaged(NodeIndex) = .empty,
@@ -88,6 +89,7 @@ fn collectDefinitions(self: *Self) !void {
                 self.numerator = ts.numerator;
                 self.denominator = ts.denominator;
             },
+            .seed => |s| self.rng = std.Random.DefaultPrng.init(s.value),
             .chord_def => |c| try self.chord_defs.put(self.allocator, c.name, c.notes),
             .phrase_def => |p| try self.phrase_defs.put(self.allocator, p.name, index),
             .section_def => |s| try self.section_defs.put(self.allocator, s.name, index),
@@ -253,6 +255,12 @@ fn resolveTransform(self: *Self, target: NodeIndex, op: ast.TransformKind) !Patt
                 n.duration /= safe_factor;
             }
         },
+        .shuffle => {
+            self.rng.random().shuffle(RelativeNote, notes);
+            for (notes, 0..) |*n, i| {
+                n.start = @as(u32, @intCast(i)) * (sub.length / @as(u32, @intCast(@max(notes.len, 1))));
+            }
+        },
         .articulation => |art| for (notes) |*n| {
             n.duration = switch (art) {
                 .staccato => n.duration / 2,
@@ -262,7 +270,31 @@ fn resolveTransform(self: *Self, target: NodeIndex, op: ast.TransformKind) !Patt
         .arp => |a| {
             if (notes.len > 0) {
                 std.mem.sort(RelativeNote, notes, {}, lessByPitch);
-                const one_cycle = try arpSequence(self.allocator, notes.len, a.mode);
+                const n = notes.len;
+
+                if (a.mode == .random) {
+                    const total_steps = n * a.cycles;
+                    const step = sub.length / @as(u32, @intCast(total_steps));
+                    const out = try self.allocator.alloc(RelativeNote, total_steps);
+                    const indices = try self.allocator.alloc(usize, n);
+                    for (indices, 0..) |*b, i| b.* = i;
+                    var cycle: u32 = 0;
+                    while (cycle < a.cycles) : (cycle += 1) {
+                        self.rng.random().shuffle(usize, indices);
+                        for (0..n) |j| {
+                            const idx = cycle * n + j;
+                            out[idx] = .{
+                                .start = @as(u32, @intCast(idx)) * step,
+                                .duration = step,
+                                .pitch = notes[indices[j]].pitch,
+                                .velocity = notes[indices[j]].velocity,
+                            };
+                        }
+                    }
+                    return .{ .notes = out, .length = sub.length };
+                }
+
+                const one_cycle = try self.arpSequence(n, a.mode);
                 const total_steps = one_cycle.len * a.cycles;
                 const step = sub.length / @as(u32, @intCast(total_steps));
                 const out = try self.allocator.alloc(RelativeNote, total_steps);
@@ -389,32 +421,38 @@ fn lessByPitch(_: void, a: RelativeNote, b: RelativeNote) bool {
     return a.pitch < b.pitch;
 }
 
-fn arpSequence(allocator: Allocator, n: usize, mode: ast.ArpMode) ![]const usize {
+fn arpSequence(self: *Self, n: usize, mode: ast.ArpMode) ![]const usize {
     switch (mode) {
         .up => {
-            const buf = try allocator.alloc(usize, n);
+            const buf = try self.allocator.alloc(usize, n);
             for (buf, 0..) |*b, i| b.* = i;
             return buf;
         },
         .down => {
-            const buf = try allocator.alloc(usize, n);
+            const buf = try self.allocator.alloc(usize, n);
             for (buf, 0..) |*b, i| b.* = n - 1 - i;
             return buf;
         },
         .up_down => {
-            if (n <= 1) return arpSequence(allocator, n, .up);
+            if (n <= 1) return self.arpSequence(n, .up);
             const len = 2 * (n - 1);
-            const buf = try allocator.alloc(usize, len);
+            const buf = try self.allocator.alloc(usize, len);
             for (0..n) |i| buf[i] = i;
             for (1..n - 1) |i| buf[n - 1 + i] = n - 1 - i;
             return buf;
         },
         .bounce => {
-            if (n <= 1) return arpSequence(allocator, n, .up);
+            if (n <= 1) return self.arpSequence(n, .up);
             const len = 2 * n;
-            const buf = try allocator.alloc(usize, len);
+            const buf = try self.allocator.alloc(usize, len);
             for (0..n) |i| buf[i] = i;
             for (0..n) |i| buf[n + i] = n - 1 - i;
+            return buf;
+        },
+        .random => {
+            const buf = try self.allocator.alloc(usize, n);
+            for (buf, 0..) |*b, i| b.* = i;
+            self.rng.random().shuffle(usize, buf);
             return buf;
         },
     }

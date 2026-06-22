@@ -23,6 +23,8 @@ const keywords = [_]Candidate{
     .{ .label = "arp", .detail = "arpeggiate (default: up)", .type = "keyword" },
     .{ .label = "staccato", .detail = "shorten notes to half duration", .type = "keyword" },
     .{ .label = "legato", .detail = "sustain notes for smooth connection", .type = "keyword" },
+    .{ .label = "shuffle", .detail = "randomize note order", .type = "keyword" },
+    .{ .label = "seed", .detail = "set the random seed for reproducibility", .type = "keyword" },
     .{ .label = "crescendo", .detail = "grow louder toward a level", .type = "keyword" },
     .{ .label = "diminuendo", .detail = "fade quieter toward a level", .type = "keyword" },
     .{ .label = "to", .detail = "target level of a dynamic shape", .type = "keyword" },
@@ -34,6 +36,7 @@ const arp_modes = [_]Candidate{
     .{ .label = "down", .detail = "arpeggiate high to low", .type = "property" },
     .{ .label = "up_down", .detail = "up then down (no repeated endpoints)", .type = "property" },
     .{ .label = "bounce", .detail = "up then down (repeated endpoints)", .type = "property" },
+    .{ .label = "random", .detail = "randomized order (seeded)", .type = "property" },
 };
 
 const durations = [_]Candidate{

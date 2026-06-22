@@ -72,6 +72,18 @@ export const INSTRUMENTS: Instrument[] = [
                 envelope: { attack: 0.01, decay: 0.2, sustain: 0.7, release: 0.25 },
             }),
     },
+    {
+        id: 'sine',
+        label: 'Sine',
+        make: () => {
+            const s = new Tone.PolySynth(Tone.Synth, {
+                oscillator: { type: 'sine' },
+                envelope: { attack: 0.08, decay: 0.1, sustain: 0.9, release: 0.6 },
+            });
+            s.volume.value = -8;
+            return s;
+        },
+    },
 ];
 
 const BY_ID = new Map(INSTRUMENTS.map((i) => [i.id, i]));
@@ -79,6 +91,7 @@ const BY_ID = new Map(INSTRUMENTS.map((i) => [i.id, i]));
 export function defaultInstrument(name: string): string {
     const n = name.toLowerCase();
     if (n.includes('bass')) return 'pluck';
+    if (n.includes('sine')) return 'sine';
     if (n.includes('sub')) return 'sub';
     if (n.includes('chord') || n.includes('pad')) return 'pad';
     if (n.includes('counter') || n.includes('harmony')) return 'glass';
@@ -116,6 +129,7 @@ export class Engine {
         song: Song,
         instrumentIds: string[],
         audible: boolean[],
+        loop: boolean,
         onEnd: () => void
     ): Promise<void> {
         await Tone.start();
@@ -124,6 +138,7 @@ export class Engine {
         const transport = Tone.getTransport();
         transport.bpm.value = song.header.tempo;
         const spt = secondsPerTick(song);
+        const duration = songSeconds(song);
 
         song.tracks.forEach((track, i) => {
             const preset = BY_ID.get(instrumentIds[i]) ?? INSTRUMENTS[0];
@@ -140,17 +155,45 @@ export class Engine {
             const part = new Tone.Part((time, ev) => {
                 synth.triggerAttackRelease(ev.note, ev.dur, time, ev.vel);
             }, events);
+            part.loop = loop;
+            part.loopEnd = duration;
             part.start(0);
             this.parts.push(part);
         });
 
-        this.endEvent = transport.scheduleOnce(() => {
-            onEnd();
-            this.stop();
-        }, songSeconds(song) + 0.4);
+        if (loop) {
+            transport.loop = true;
+            transport.loopStart = 0;
+            transport.loopEnd = duration;
+        } else {
+            transport.loop = false;
+            this.endEvent = transport.scheduleOnce(() => {
+                onEnd();
+                this.stop();
+            }, duration + 0.4);
+        }
 
         transport.position = 0;
         transport.start();
+    }
+
+    setLoop(loop: boolean, song?: Song): void {
+        const transport = Tone.getTransport();
+        if (loop && song) {
+            const duration = songSeconds(song);
+            transport.loop = true;
+            transport.loopStart = 0;
+            transport.loopEnd = duration;
+            for (const part of this.parts) {
+                part.loop = true;
+                part.loopEnd = duration;
+            }
+        } else {
+            transport.loop = false;
+            for (const part of this.parts) {
+                part.loop = false;
+            }
+        }
     }
 
     setAudible(audible: boolean[]): void {
@@ -165,6 +208,7 @@ export class Engine {
             transport.clear(this.endEvent);
             this.endEvent = null;
         }
+        transport.loop = false;
         transport.stop();
         transport.cancel();
         this.parts.forEach((p) => {

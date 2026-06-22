@@ -11,7 +11,7 @@ pub const DynamicShapeKind = enum { crescendo, diminuendo };
 pub const Position = struct { bar: u32, beat: u32 };
 pub const Pitched = struct { pitch: Pitch, accidental: Accidental, octave: u8 };
 
-pub const ArpMode = enum { up, down, up_down, bounce };
+pub const ArpMode = enum { up, down, up_down, bounce, random };
 
 pub const Articulation = enum { staccato, legato };
 
@@ -21,6 +21,7 @@ pub const TransformKind = union(enum) {
     augment: u32, // xN
     diminish: u32, // xN
     arp: struct { mode: ArpMode, cycles: u32 = 1 },
+    shuffle,
     articulation: Articulation,
 };
 
@@ -28,6 +29,7 @@ pub const Node = union(enum) {
     // global settings
     tempo: struct { bpm: u32 },
     time_signature: struct { numerator: u32, denominator: u32 },
+    seed: struct { value: u64 },
 
     // top-level definitions
     chord_def: struct { name: []const u8, notes: []const Pitched, line: u32 = 0, column: u32 = 0 },

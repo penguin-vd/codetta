@@ -15,6 +15,7 @@ const STRUCTURE = new Set([
     'section',
     'song',
     'track',
+    'seed',
 ]);
 const FLOW = new Set([
     'dynamic',
@@ -32,9 +33,10 @@ const FLOW = new Set([
     'arp',
     'staccato',
     'legato',
+    'shuffle',
 ]);
 const DURATIONS = new Set(['whole', 'half', 'quarter', 'eighth', 'sixteenth', 'dot', 't']);
-const ARP_MODES = new Set(['up', 'down', 'up_down', 'bounce']);
+const ARP_MODES = new Set(['up', 'down', 'up_down', 'bounce', 'random']);
 const DYNAMICS = new Set(['ppp', 'pp', 'p', 'mp', 'mf', 'f', 'ff', 'fff']);
 
 const coda = StreamLanguage.define({

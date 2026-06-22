@@ -28,9 +28,19 @@ song =
 `;
 
 const STORAGE_KEY = 'codetta-source';
+const INSTRUMENTS_KEY = 'codetta-instruments';
 
 function getInitialSource(): string {
     return localStorage.getItem(STORAGE_KEY) ?? SAMPLE;
+}
+
+function getStoredInstruments(): Record<string, string> {
+    try {
+        const raw = localStorage.getItem(INSTRUMENTS_KEY);
+        return raw ? JSON.parse(raw) : {};
+    } catch {
+        return {};
+    }
 }
 
 export function App() {
@@ -39,14 +49,19 @@ export function App() {
     const [error, setError] = useState<string | null>(null);
     const [ready, setReady] = useState(false);
     const [playing, setPlaying] = useState(false);
-    const [instruments, setInstruments] = useState<Record<string, string>>({});
+    const [instruments, setInstruments] = useState<Record<string, string>>(getStoredInstruments);
     const [muted, setMuted] = useState<Set<string>>(new Set());
     const [soloed, setSoloed] = useState<Set<string>>(new Set());
+    const [looping, setLooping] = useState(false);
 
     useEffect(() => {
         const id = setTimeout(() => localStorage.setItem(STORAGE_KEY, source), 400);
         return () => clearTimeout(id);
     }, [source]);
+
+    useEffect(() => {
+        localStorage.setItem(INSTRUMENTS_KEY, JSON.stringify(instruments));
+    }, [instruments]);
 
     const engineRef = useRef<Engine | null>(null);
     if (!engineRef.current) engineRef.current = new Engine();
@@ -109,9 +124,13 @@ export function App() {
     async function play() {
         if (!song) return;
         const ids = song.tracks.map((t) => instruments[t.name] ?? defaultInstrument(t.name));
-        await engine.play(song, ids, audible, () => setPlaying(false));
+        await engine.play(song, ids, audible, looping, () => setPlaying(false));
         setPlaying(true);
     }
+
+    useEffect(() => {
+        if (playing) engine.setLoop(looping, song ?? undefined);
+    }, [looping, playing, engine, song]);
 
     function stop() {
         engine.stop();
@@ -170,6 +189,7 @@ export function App() {
                         <Transport
                             ready={ready}
                             playing={playing}
+                            looping={looping}
                             tempo={song?.header.tempo ?? null}
                             signature={song?.header.timeSignature ?? null}
                             noteCount={noteCount}
@@ -177,6 +197,7 @@ export function App() {
                             exporting={exporting}
                             onPlay={play}
                             onStop={stop}
+                            onToggleLoop={() => setLooping((l) => !l)}
                             onExportMidi={exportMidi}
                             onExportWav={exportWav}
                         />

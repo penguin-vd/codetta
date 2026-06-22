@@ -25,6 +25,7 @@ const keywords: std.StaticStringMap(TokenType) = .initComptime(.{
     .{ "diminuendo", .diminuendo },
     .{ "to", .to },
     .{ "over", .over },
+    .{ "seed", .seed },
     .{ "dot", .dot },
     .{ "whole", .duration },
     .{ "half", .duration },

@@ -1,9 +1,10 @@
 import { Menu } from '@base-ui/react/menu';
-import { ChevronDown, Download, Play, Square } from 'lucide-react';
+import { ChevronDown, Download, Play, Repeat, Square } from 'lucide-react';
 
 interface Props {
     ready: boolean;
     playing: boolean;
+    looping: boolean;
     tempo: number | null;
     signature: [number, number] | null;
     noteCount: number;
@@ -11,6 +12,7 @@ interface Props {
     exporting: boolean;
     onPlay: () => void;
     onStop: () => void;
+    onToggleLoop: () => void;
     onExportMidi: () => void;
     onExportWav: () => void;
 }
@@ -18,6 +20,7 @@ interface Props {
 export function Transport({
     ready,
     playing,
+    looping,
     tempo,
     signature,
     noteCount,
@@ -25,6 +28,7 @@ export function Transport({
     exporting,
     onPlay,
     onStop,
+    onToggleLoop,
     onExportMidi,
     onExportWav,
 }: Props) {
@@ -64,6 +68,18 @@ export function Transport({
                         <Play size={12} fill="currentColor" />
                     )}
                     {playing ? 'Stop' : 'Play'}
+                </button>
+                <button
+                    type="button"
+                    onClick={onToggleLoop}
+                    className={`inline-flex items-center rounded-md border px-2.5 py-2 transition ${
+                        looping
+                            ? 'border-gold/50 bg-gold/10 text-gold'
+                            : 'border-line bg-raise text-dim hover:border-gold/30 hover:text-cream'
+                    }`}
+                    title={looping ? 'Looping' : 'Loop'}
+                >
+                    <Repeat size={14} />
                 </button>
                 <Menu.Root>
                     <Menu.Trigger

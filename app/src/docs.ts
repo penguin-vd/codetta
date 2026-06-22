@@ -29,7 +29,7 @@ export const DOCS: DocEntry[] = [
             'A score has a single tempo, written once near the top, applied to the whole song.',
             'If omitted, Codetta defaults to 120 bpm and the editor shows a hint.',
         ],
-        see: ['time_signature'],
+        see: ['time_signature', 'seed'],
     },
     {
         slug: 'time_signature',
@@ -43,6 +43,19 @@ export const DOCS: DocEntry[] = [
             'Defaults to 4/4 when omitted.',
         ],
         see: ['position', 'tempo'],
+    },
+    {
+        slug: 'seed',
+        title: 'seed',
+        kind: 'Setting',
+        summary: 'Sets the random seed for reproducible randomness.',
+        syntax: 'seed <number>',
+        example: 'seed 42',
+        body: [
+            'Controls the random number generator used by shuffle and arp.random. The same seed always produces the same output.',
+            'If omitted, defaults to 0. Change the seed to get a different random arrangement.',
+        ],
+        see: ['shuffle', 'arp'],
     },
     {
         slug: 'chord',
@@ -257,6 +270,19 @@ export const DOCS: DocEntry[] = [
         see: ['augment', 'duration'],
     },
     {
+        slug: 'shuffle',
+        title: 'shuffle',
+        kind: 'Transform',
+        summary: 'Randomizes the order of notes in a pattern.',
+        syntax: '<target> shuffle',
+        example: 'seed 42\n\nphrase melody =\n  C4.quarter E4.quarter G4.quarter B4.quarter\n\nsection verse =\n  track lead: melody shuffle',
+        body: [
+            'Rearranges notes into a random order while keeping the same timing grid. Use seed to control which order you get.',
+            'Applies to phrases, chords, and sequences. Combine with other transforms: melody shuffle staccato.',
+        ],
+        see: ['seed', 'arp', 'reverse'],
+    },
+    {
         slug: 'staccato',
         title: 'staccato',
         kind: 'Transform',
@@ -288,13 +314,14 @@ export const DOCS: DocEntry[] = [
         kind: 'Transform',
         summary: 'Arpeggiates a chord across its duration.',
         syntax: '<target> arp[.mode] [xN]',
-        example: 'Cmaj.whole arp\nCmaj.whole arp.down\nCmaj.2whole arp.bounce x2',
+        example: 'Cmaj.whole arp\nCmaj.whole arp.down\nCmaj.2whole arp.bounce x2\nCmaj.whole arp.random',
         body: [
-            'Spreads simultaneous notes out in time. Modes: arp (or arp.up) plays low to high; arp.down plays high to low; arp.up_down goes up then down without repeating endpoints; arp.bounce goes up then down with repeated endpoints.',
+            'Spreads simultaneous notes out in time. Modes: arp (or arp.up) plays low to high; arp.down plays high to low; arp.up_down goes up then down without repeating endpoints; arp.bounce goes up then down with repeated endpoints; arp.random picks a seeded random order.',
             'Add xN to cycle the pattern N times within the same duration. Combine with multi-bar durations (e.g. .2whole) for longer arpeggios.',
+            'arp.random uses the seed setting for reproducibility — same seed, same pattern every time.',
         ],
-        aliases: ['up', 'down', 'up_down', 'bounce'],
-        see: ['transpose', 'reverse', 'track', 'chord'],
+        aliases: ['up', 'down', 'up_down', 'bounce', 'random'],
+        see: ['transpose', 'reverse', 'track', 'chord', 'seed', 'shuffle'],
     },
 ];
 

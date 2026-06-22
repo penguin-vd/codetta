@@ -644,6 +644,185 @@ test "triplet rest advances time correctly" {
     try testing.expectEqual(@as(u32, 320), result.notes[0].start);
 }
 
+test "shuffle randomizes note order with seed" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const result = try lower(arena.allocator(),
+        \\seed 42
+        \\
+        \\phrase melody =
+        \\  C4.quarter E4.quarter G4.quarter B4.quarter
+        \\
+        \\section verse =
+        \\  track lead: melody shuffle
+        \\
+        \\song =
+        \\  verse
+    );
+
+    try testing.expectEqual(@as(usize, 4), result.notes.len);
+    // Notes are evenly spaced (same timing grid)
+    try testing.expectEqual(@as(u32, 0), result.notes[0].start);
+    try testing.expectEqual(@as(u32, 480), result.notes[1].start);
+    try testing.expectEqual(@as(u32, 960), result.notes[2].start);
+    try testing.expectEqual(@as(u32, 1440), result.notes[3].start);
+    // At least one note should be in a different position than the original order
+    const original = [_]u8{ 60, 64, 67, 71 }; // C4 E4 G4 B4
+    var any_different = false;
+    for (result.notes, 0..) |n, i| {
+        if (n.pitch != original[i]) any_different = true;
+    }
+    try testing.expect(any_different);
+}
+
+test "shuffle is reproducible with same seed" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const input =
+        \\seed 99
+        \\
+        \\phrase melody =
+        \\  C4.quarter D4.quarter E4.quarter F4.quarter G4.quarter A4.quarter B4.quarter C5.quarter
+        \\
+        \\section verse =
+        \\  track lead: melody shuffle
+        \\
+        \\song =
+        \\  verse
+    ;
+
+    const r1 = try lower(arena.allocator(), input);
+    const r2 = try lower(arena.allocator(), input);
+
+    try testing.expectEqual(r1.notes.len, r2.notes.len);
+    for (r1.notes, r2.notes) |a, b| {
+        try testing.expectEqual(a.pitch, b.pitch);
+        try testing.expectEqual(a.start, b.start);
+    }
+}
+
+test "arp.random produces seeded random order" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const result = try lower(arena.allocator(),
+        \\seed 42
+        \\chord Cmaj = [C4 E4 G4]
+        \\
+        \\section verse =
+        \\  track keys: Cmaj.whole arp.random
+        \\
+        \\song =
+        \\  verse
+    );
+
+    try testing.expectEqual(@as(usize, 3), result.notes.len);
+    // Notes are evenly spaced like any arp
+    try testing.expectEqual(@as(u32, 0), result.notes[0].start);
+    try testing.expectEqual(@as(u32, 640), result.notes[1].start);
+    try testing.expectEqual(@as(u32, 1280), result.notes[2].start);
+    for (result.notes) |n| try testing.expectEqual(@as(u32, 640), n.duration);
+    // All three pitches should be present
+    var pitches = [_]bool{false} ** 128;
+    for (result.notes) |n| pitches[n.pitch] = true;
+    try testing.expect(pitches[60]); // C4
+    try testing.expect(pitches[64]); // E4
+    try testing.expect(pitches[67]); // G4
+}
+
+test "arp.random x2 produces fresh shuffle each cycle" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const result = try lower(arena.allocator(),
+        \\seed 42
+        \\chord Cmaj = [C4 E4 G4 B4]
+        \\
+        \\section verse =
+        \\  track keys: Cmaj.whole arp.random x2
+        \\
+        \\song =
+        \\  verse
+    );
+
+    // 4 notes * 2 cycles = 8 steps
+    try testing.expectEqual(@as(usize, 8), result.notes.len);
+    // Extract pitches per cycle
+    var cycle1: [4]u8 = undefined;
+    var cycle2: [4]u8 = undefined;
+    for (0..4) |i| {
+        cycle1[i] = result.notes[i].pitch;
+        cycle2[i] = result.notes[4 + i].pitch;
+    }
+    // Both cycles should contain all 4 pitches
+    var pitches1 = [_]bool{false} ** 128;
+    var pitches2 = [_]bool{false} ** 128;
+    for (cycle1) |p| pitches1[p] = true;
+    for (cycle2) |p| pitches2[p] = true;
+    try testing.expect(pitches1[60] and pitches1[64] and pitches1[67] and pitches1[71]);
+    try testing.expect(pitches2[60] and pitches2[64] and pitches2[67] and pitches2[71]);
+    // The two cycles should differ in order (with overwhelming probability for seed 42)
+    var same = true;
+    for (cycle1, cycle2) |a, b| if (a != b) {
+        same = false;
+    };
+    try testing.expect(!same);
+}
+
+test "arp.random is reproducible with same seed" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const input =
+        \\seed 7
+        \\chord Cmaj = [C4 E4 G4 B4]
+        \\
+        \\section verse =
+        \\  track keys: Cmaj.whole arp.random
+        \\
+        \\song =
+        \\  verse
+    ;
+
+    const r1 = try lower(arena.allocator(), input);
+    const r2 = try lower(arena.allocator(), input);
+
+    try testing.expectEqual(r1.notes.len, r2.notes.len);
+    for (r1.notes, r2.notes) |a, b| {
+        try testing.expectEqual(a.pitch, b.pitch);
+    }
+}
+
+test "different seeds produce different shuffle orders" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const base =
+        \\phrase melody =
+        \\  C4.quarter D4.quarter E4.quarter F4.quarter G4.quarter A4.quarter B4.quarter C5.quarter
+        \\
+        \\section verse =
+        \\  track lead: melody shuffle
+        \\
+        \\song =
+        \\  verse
+    ;
+
+    const input1 = "seed 1\n" ++ base;
+    const input2 = "seed 2\n" ++ base;
+
+    const r1 = try lower(arena.allocator(), input1);
+    const r2 = try lower(arena.allocator(), input2);
+
+    var any_different = false;
+    for (r1.notes, r2.notes) |a, b| {
+        if (a.pitch != b.pitch) any_different = true;
+    }
+    try testing.expect(any_different);
+}
+
 test "staccato halves note duration" {
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();

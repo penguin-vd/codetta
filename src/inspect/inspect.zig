@@ -29,6 +29,7 @@ fn printNode(program: ast.Program, index: ast.NodeIndex, indent: usize) void {
     switch (program.nodes[index]) {
         .tempo => |n| line(indent, "tempo {d}", .{n.bpm}),
         .time_signature => |n| line(indent, "time_signature {d}/{d}", .{ n.numerator, n.denominator }),
+        .seed => |n| line(indent, "seed {d}", .{n.value}),
 
         .chord_def => |n| {
             line(indent, "chord_def \"{s}\"", .{n.name});
@@ -124,6 +125,7 @@ fn printNode(program: ast.Program, index: ast.NodeIndex, indent: usize) void {
                     if (a.cycles > 1) std.debug.print(" x{d}", .{a.cycles});
                     std.debug.print("\n", .{});
                 },
+                .shuffle => std.debug.print("shuffle\n", .{}),
                 .articulation => |a| std.debug.print("{s}\n", .{@tagName(a)}),
             }
             printNode(program, n.target, indent + 1);

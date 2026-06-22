@@ -146,7 +146,7 @@ fn synchronize(self: *Self) void {
 
 fn isTopLevelStart(t: TokenType) bool {
     return switch (t) {
-        .tempo, .time_signature, .chord, .phrase, .section, .song => true,
+        .tempo, .time_signature, .seed, .chord, .phrase, .section, .song => true,
         else => false,
     };
 }
@@ -155,6 +155,7 @@ fn parseTopLevel(self: *Self) !NodeIndex {
     return switch (self.cur_token.tokenType) {
         .tempo => self.parseTempo(),
         .time_signature => self.parseTimeSignature(),
+        .seed => self.parseSeed(),
         .chord => self.parseChordDef(),
         .phrase => self.parsePhraseDef(),
         .section => self.parseSectionDef(),
@@ -182,6 +183,13 @@ fn parseTimeSignature(self: *Self) !NodeIndex {
         .numerator = try self.parseIntTok(u32, num_tok),
         .denominator = try self.parseIntTok(u32, den_tok),
     } });
+}
+
+fn parseSeed(self: *Self) !NodeIndex {
+    _ = try self.expect(.seed);
+    const val_tok = try self.expect(.int);
+
+    return self.addNode(.{ .seed = .{ .value = try self.parseIntTok(u64, val_tok) } });
 }
 
 fn parseChordDef(self: *Self) !NodeIndex {
@@ -482,6 +490,10 @@ fn tryParseTransform(self: *Self) !?ast.TransformKind {
     if (std.mem.eql(u8, name, "diminish")) {
         self.advance();
         return .{ .diminish = try self.parseMultiplier() };
+    }
+    if (std.mem.eql(u8, name, "shuffle")) {
+        self.advance();
+        return .shuffle;
     }
     if (std.mem.eql(u8, name, "staccato")) {
         self.advance();

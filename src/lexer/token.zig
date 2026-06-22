@@ -24,6 +24,7 @@ pub const TokenType = enum {
     diminuendo,
     to,
     over,
+    seed,
 
     // symbols
     dot,

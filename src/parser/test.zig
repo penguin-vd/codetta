@@ -232,6 +232,47 @@ test "staccato and legato on track content" {
     try testing.expectEqual(ast.TransformKind{ .articulation = .legato }, l.op);
 }
 
+test "seed setting parses" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const program = try parse(arena.allocator(), "seed 42");
+
+    try testing.expectEqual(@as(usize, 1), program.top_level.len);
+    try testing.expectEqual(@as(u64, 42), program.nodes[program.top_level[0]].seed.value);
+}
+
+test "shuffle transform on track content" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const program = try parse(arena.allocator(),
+        \\section verse =
+        \\  track lead: melody shuffle
+    );
+
+    const section = program.nodes[program.top_level[0]].section_def;
+    const track = program.nodes[section.tracks[0]].track;
+    const shuf = program.nodes[track.content].transform;
+    try testing.expectEqual(ast.TransformKind.shuffle, shuf.op);
+    try testing.expectEqualStrings("melody", program.nodes[shuf.target].identifier.name);
+}
+
+test "arp.random mode parses" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const program = try parse(arena.allocator(),
+        \\section verse =
+        \\  track keys: Cmaj.whole arp.random
+    );
+
+    const section = program.nodes[program.top_level[0]].section_def;
+    const track = program.nodes[section.tracks[0]].track;
+    const arp = program.nodes[track.content].transform;
+    try testing.expectEqual(ast.ArpMode.random, arp.op.arp.mode);
+}
+
 test "staccato chains with arp" {
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();
