@@ -28,7 +28,7 @@ export function DocsPage({ slug }: Props) {
     }, [slug]);
 
     return (
-        <div className="fixed inset-0 z-50 grid grid-rows-[auto_1fr] bg-bg text-cream">
+        <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-bg text-cream">
             <Header
                 subtitle="language reference"
                 actions={
@@ -42,7 +42,7 @@ export function DocsPage({ slug }: Props) {
                 }
             />
 
-            <div className="flex min-h-0 flex-col md:grid md:grid-cols-[240px_1fr]">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col md:grid md:grid-cols-[240px_minmax(0,1fr)]">
                 {/* Mobile: the topic list collapses behind a disclosure. */}
                 <details ref={navRef} className="border-b border-line md:hidden">
                     <summary className="flex cursor-pointer items-center gap-2 px-4 py-3 font-mono text-xs uppercase tracking-wider text-dim marker:content-none">
@@ -59,7 +59,7 @@ export function DocsPage({ slug }: Props) {
                     <Sidebar activeSlug={entry?.slug ?? null} />
                 </div>
 
-                <div ref={contentRef} className="min-h-0 flex-1 overflow-auto">
+                <div ref={contentRef} className="min-h-0 min-w-0 flex-1 overflow-auto">
                     {entry ? <Article entry={entry} /> : <Overview />}
                 </div>
             </div>

@@ -79,6 +79,16 @@ html.light ::-webkit-scrollbar-thumb:hover {
   background: #b8b0a3;
 }
 
+/* Phones scroll by touch — the bars just take up space. */
+@media (max-width: 768px) {
+  * {
+    scrollbar-width: none;
+  }
+  ::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 html.light select option {
   background: var(--color-panel);
   color: var(--color-cream);

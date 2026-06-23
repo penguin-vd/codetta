@@ -18,7 +18,6 @@ export function decodeSource(encoded: string): string {
 
 export const sharedHref = (source: string): string => `#/s/${encodeSource(source)}`;
 
-/** Absolute, shareable URL for the given source. */
 export function shareLink(source: string): string {
     return `${window.location.origin}${window.location.pathname}${sharedHref(source)}`;
 }
