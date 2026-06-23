@@ -1,4 +1,4 @@
-import { BookOpen } from 'lucide-react';
+import { BookOpen, Check, Eye, Share2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { defaultInstrument, Engine } from './audio.ts';
 import { Editor } from './components/Editor.tsx';
@@ -6,6 +6,8 @@ import { Header } from './components/Header.tsx';
 import { PianoRoll } from './components/PianoRoll.tsx';
 import { TrackRail } from './components/TrackRail.tsx';
 import { Transport } from './components/Transport.tsx';
+import { useRoute } from './router.ts';
+import { shareLink } from './share.ts';
 import type { Song } from './types.ts';
 import { CompileError, compileMidi, compileSong, preloadWasm } from './wasm.ts';
 
@@ -44,7 +46,14 @@ function getStoredInstruments(): Record<string, string> {
 }
 
 export function App() {
-    const [source, setSource] = useState(getInitialSource);
+    const route = useRoute();
+    const isShared = route.name === 'shared';
+
+    // A shared link carries its source in the URL and must never touch the
+    // visitor's own stored draft — seed from the link, persist nothing.
+    const [source, setSource] = useState(() =>
+        route.name === 'shared' ? route.source : getInitialSource()
+    );
     const [song, setSong] = useState<Song | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [ready, setReady] = useState(false);
@@ -55,13 +64,15 @@ export function App() {
     const [looping, setLooping] = useState(false);
 
     useEffect(() => {
+        if (isShared) return;
         const id = setTimeout(() => localStorage.setItem(STORAGE_KEY, source), 400);
         return () => clearTimeout(id);
-    }, [source]);
+    }, [source, isShared]);
 
     useEffect(() => {
+        if (isShared) return;
         localStorage.setItem(INSTRUMENTS_KEY, JSON.stringify(instruments));
-    }, [instruments]);
+    }, [instruments, isShared]);
 
     const engineRef = useRef<Engine | null>(null);
     if (!engineRef.current) engineRef.current = new Engine();
@@ -180,12 +191,40 @@ export function App() {
         return next;
     };
 
+    const [copied, setCopied] = useState(false);
+
+    async function share() {
+        try {
+            await navigator.clipboard.writeText(shareLink(source));
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1600);
+        } catch {
+            /* clipboard blocked; nothing to surface */
+        }
+    }
+
+    // Promote a shared song to the visitor's own editable draft.
+    function makeCopy() {
+        localStorage.setItem(STORAGE_KEY, source);
+        localStorage.setItem(INSTRUMENTS_KEY, JSON.stringify(instruments));
+        window.location.hash = '#/';
+    }
+
     return (
-        <div className="grid h-screen grid-rows-[auto_1fr]">
+        <div className="flex h-screen flex-col">
             <Header
                 subtitle="music, compiled"
                 actions={
                     <>
+                        <button
+                            type="button"
+                            onClick={share}
+                            disabled={!source.trim()}
+                            className="inline-flex items-center gap-2 rounded-md border border-line bg-raise px-4 py-2 font-mono text-xs font-semibold uppercase tracking-wider text-cream transition hover:border-gold/50 hover:text-gold disabled:opacity-40"
+                        >
+                            {copied ? <Check size={14} /> : <Share2 size={14} />}
+                            {copied ? 'Copied' : 'Share'}
+                        </button>
                         <Transport
                             ready={ready}
                             playing={playing}
@@ -212,7 +251,23 @@ export function App() {
                 }
             />
 
-            <main className="grid min-h-0 grid-cols-[minmax(320px,36%)_1fr]">
+            {isShared && (
+                <div className="flex items-center justify-between gap-3 border-b border-gold/30 bg-gold/10 px-6 py-2 font-mono text-xs text-cream">
+                    <span className="inline-flex items-center gap-2 text-dim">
+                        <Eye size={14} className="text-gold" />
+                        Viewing a shared song — your own draft is untouched.
+                    </span>
+                    <button
+                        type="button"
+                        onClick={makeCopy}
+                        className="rounded-md border border-gold/40 bg-gold/10 px-3 py-1.5 font-semibold uppercase tracking-wider text-gold transition hover:bg-gold/20"
+                    >
+                        Make a copy to edit
+                    </button>
+                </div>
+            )}
+
+            <main className="grid min-h-0 flex-1 grid-cols-[minmax(320px,36%)_1fr]">
                 <section className="min-h-0 overflow-hidden border-r border-line">
                     <Editor value={source} onChange={setSource} />
                 </section>
