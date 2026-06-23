@@ -3,12 +3,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { defaultInstrument, Engine } from './audio.ts';
 import { Editor } from './components/Editor.tsx';
 import { Header } from './components/Header.tsx';
+import { MobileApp } from './components/MobileApp.tsx';
 import { PianoRoll } from './components/PianoRoll.tsx';
 import { TrackRail } from './components/TrackRail.tsx';
 import { Transport } from './components/Transport.tsx';
 import { useRoute } from './router.ts';
 import { shareLink } from './share.ts';
 import type { Song } from './types.ts';
+import { useIsMobile } from './useIsMobile.ts';
 import { CompileError, compileMidi, compileSong, preloadWasm } from './wasm.ts';
 
 const SAMPLE = `tempo 100
@@ -48,6 +50,7 @@ function getStoredInstruments(): Record<string, string> {
 export function App() {
     const route = useRoute();
     const isShared = route.name === 'shared';
+    const isMobile = useIsMobile();
 
     // A shared link carries its source in the URL and must never touch the
     // visitor's own stored draft — seed from the link, persist nothing.
@@ -208,6 +211,41 @@ export function App() {
         localStorage.setItem(STORAGE_KEY, source);
         localStorage.setItem(INSTRUMENTS_KEY, JSON.stringify(instruments));
         window.location.hash = '#/';
+    }
+
+    if (isMobile) {
+        return (
+            <MobileApp
+                source={source}
+                onSource={setSource}
+                song={song}
+                engine={engine}
+                ready={ready}
+                playing={playing}
+                looping={looping}
+                error={error}
+                noteCount={noteCount}
+                exporting={exporting}
+                audible={audible}
+                onPlay={play}
+                onStop={stop}
+                onToggleLoop={() => setLooping((l) => !l)}
+                onExportMidi={exportMidi}
+                onExportWav={exportWav}
+                onShare={share}
+                copied={copied}
+                isShared={isShared}
+                onMakeCopy={makeCopy}
+                instruments={instruments}
+                muted={muted}
+                soloed={soloed}
+                onInstrument={(name, id) =>
+                    setInstruments((prev) => ({ ...prev, [name]: id }))
+                }
+                onToggleMute={(name) => setMuted((m) => toggle(m, name))}
+                onToggleSolo={(name) => setSoloed((s) => toggle(s, name))}
+            />
+        );
     }
 
     return (
