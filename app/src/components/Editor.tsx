@@ -62,6 +62,13 @@ async function codaCompletions(context: CompletionContext): Promise<CompletionRe
     };
 }
 
+// Navigating away (e.g. "Open docs →") leaves the editor mounted, so the hover
+// tooltip never receives a mouseleave and lingers. Fake one to dismiss it.
+function dismissHover(view: EditorView) {
+    view.dom.dispatchEvent(new MouseEvent('mouseleave'));
+    view.contentDOM.dispatchEvent(new MouseEvent('mouseleave'));
+}
+
 const codaHover = hoverTooltip(async (view, pos) => {
     const doc = view.state.doc;
     const line = doc.lineAt(pos);
@@ -106,6 +113,7 @@ const codaHover = hoverTooltip(async (view, pos) => {
             } else if (slug) {
                 link.textContent = 'Open docs →';
                 link.href = docsHref(slug);
+                link.addEventListener('click', () => dismissHover(view));
             } else {
                 dom.removeChild(link);
             }
@@ -131,11 +139,15 @@ async function goToSymbol(view: EditorView, pos: number) {
             ? doc.sliceString(range.from - 1, range.from)
             : doc.sliceString(pos, pos + 1);
     if (before === '@') {
+        dismissHover(view);
         window.location.hash = docsHref('position');
         return;
     }
     const slug = docFor(range ? view.state.sliceDoc(range.from, range.to) : '');
-    if (slug) window.location.hash = docsHref(slug);
+    if (slug) {
+        dismissHover(view);
+        window.location.hash = docsHref(slug);
+    }
 }
 
 // Ctrl/Cmd-click or middle-click on a symbol acts as go-to-definition.
